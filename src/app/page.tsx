@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import type { Wallet } from "../core";
+import { LiquiditySection, type LPScope } from "./liquidity";
 type Stats = {
   wallets: Wallet[];
   listedWallets?: number;
@@ -32,6 +33,7 @@ type Report = {
   since: number;
   poolCount: number;
   scopes: Record<string, Scope>;
+  liquidity?: { scopes: Record<string, LPScope> };
   chains: { id: number; name: string; explorer: string; pools: number }[];
   coverage: {
     chain_id: number;
@@ -141,6 +143,7 @@ export default function Page() {
   const scope = report?.scopes[chain],
     stats = scope?.windows[period],
     all = scope?.windows.all;
+  const liquidity = report?.liquidity?.scopes[chain];
   const wallets = useMemo(() => {
     const rows = (stats?.wallets ?? []).filter((w) =>
       w.address.includes(query.toLowerCase().trim()),
@@ -213,6 +216,7 @@ export default function Page() {
             Traders
           </a>
           <a href="#analysis">Volume analysis</a>
+          <a href="#liquidity">Liquidity</a>
           <a href="#method">Methodology</a>
         </nav>
         <div className="source">
@@ -612,6 +616,7 @@ export default function Page() {
             </div>
           </div>
         </section>
+        <LiquiditySection data={liquidity} chains={report?.chains ?? []} />
         <section className="method" id="method">
           <div>
             <span className="eyebrow">ABOUT THE DATA</span>
@@ -746,6 +751,18 @@ export default function Page() {
               </div>
             </div>
             <p className="profile-note">
+              {liquidity?.traderWallets &&
+                selected.address in liquidity.traderWallets && (
+                  <>
+                    <strong>LP profile:</strong>{" "}
+                    {liquidity.traderWallets[selected.address]
+                      ? `active ${money(liquidity.traderWallets[selected.address]!.activeUsd)} · lifetime deposits ${money(liquidity.traderWallets[selected.address]!.lifetimeDepositsUsd)}`
+                      : liquidity.historyComplete
+                        ? "No LP events in the indexed history"
+                        : "LP history incomplete"}
+                    <br />
+                  </>
+                )}
               First seen in this window: {date(selected.firstSeen)}
               <br />
               Last active: {date(selected.lastActive)}

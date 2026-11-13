@@ -1188,3 +1188,81 @@ th {
   padding: 0 24px 18px;
   margin: 0;
 }
+
+.lp-section {
+  margin-top: 38px;
+}
+.lp-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.lp-heading h2 {
+  font-size: 30px;
+  letter-spacing: -1px;
+  font-weight: 500;
+  margin: 12px 0;
+}
+.lp-heading p,
+.lp-explainer {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.lp-heading .subtle {
+  white-space: nowrap;
+}
+.lp-thresholds {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.lp-thresholds strong {
+  display: block;
+  font:
+    34px ui-monospace,
+    Consolas,
+    monospace;
+  color: var(--accent);
+  letter-spacing: -1px;
+  margin: 23px 0 10px;
+}
+.lp-thresholds p {
+  font-size: 12px;
+  margin: 0 0 13px;
+}
+.lp-thresholds article > div {
+  font-size: 10px;
+  color: var(--muted);
+}
+.lp-explainer {
+  margin: 15px 0 25px;
+}
+.lp-leaderboard {
+  margin-top: 22px;
+}
+@media (max-width: 760px) {
+  .lp-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .lp-thresholds {
+    grid-template-columns: 1fr;
+  }
+  .lp-thresholds .panel {
+    padding: 20px;
+  }
+  .lp-thresholds strong {
+    font-size: 30px;
+    margin-top: 18px;
+  }
+  .lp-heading h2 {
+    font-size: 26px;
+  }
+  .topbar nav a:nth-child(2) {
+    display: none;
+  }
+}

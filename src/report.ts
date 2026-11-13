@@ -4,6 +4,7 @@ import { CHAINS } from "./core";
 import { loadPools } from "./db";
 import { sqlAnalytics } from "./sqlAnalytics";
 import { archiveSnapshot } from "./snapshots";
+import { buildLPReport } from "./lp/report";
 export function exportReport(db: DatabaseSync) {
   const pools = loadPools(db);
   const coverage = db
@@ -75,6 +76,7 @@ export function exportReport(db: DatabaseSync) {
       ),
     };
   }
+  const liquidity = buildLPReport(db, pools, scopes);
   const report = {
     generatedAt,
     asOf: until,
@@ -88,6 +90,7 @@ export function exportReport(db: DatabaseSync) {
     })),
     coverage,
     scopes,
+    liquidity,
     methodology: {
       user: "Unique transaction sender (tx.from), deduplicated across chains. Relayers, bots, solvers and account-abstraction bundlers may represent other users.",
       volume:
@@ -154,7 +157,42 @@ export function exportReport(db: DatabaseSync) {
     `Of ${count(s.swapCount)} swaps, ${count(s.pricedSwaps)} have a USD estimate; ${count(s.spotEstimatedSwaps)} use current metadata prices rather than a stable-unit estimate.`,
     `Swaps and transaction counts are intentionally separate: multi-pool routes can inflate swap counts and sum turnover across several pools in one transaction. High volume alone does not establish profitability or identify an individual user.`,
     "",
-    "This analysis covers transaction senders in registered canonical-factory pools. It does not measure LP users, LP TVL, profits or wash-trading-adjusted end-user notional. USD values are estimates, not historical execution prices.",
+    "Trader analysis covers transaction senders in registered canonical-factory pools. LP analysis below separately identifies position owners. Neither measures profits or wash-trading-adjusted end-user notional. USD values are estimates, not historical execution prices.",
+  );
+  const lp = liquidity.scopes[0] as import("./app/liquidity").LPScope;
+  lines.push(
+    "",
+    "## Liquidity providers",
+    "",
+    `Full LP history: ${lp.historyComplete ? "complete" : "partial"}. ${count(lp.totalLPWallets)} historical owners; ${count(lp.activeLPWallets)} owners with open shares; ${count(lp.valuedActiveLPWallets)} positive, fully valued active portfolios.`,
+    `Known active liquidity: ${usd(lp.knownActiveLiquidityUsd)}. Cumulative deposits: ${usd(lp.knownLifetimeDepositsUsd)}; withdrawals: ${usd(lp.knownLifetimeWithdrawalsUsd)}. Both token legs use synced spot quotes; repeated capital counts again in flows.`,
+    `${count(lp.unpricedOrUnverifiedWallets)} active portfolios excluded from ranking; ${count(lp.failedPools)} pools failed valuation checks. Thresholds apply to positive, fully valued portfolios.`,
+    "",
+    "| LP cohort | Active capital entry cutoff | Wallets including ties | Share of valued capital |",
+    "| --- | ---: | ---: | ---: |",
+    ...lp.thresholds.map(
+      (t) =>
+        `| Top ${t.percent}% | ${usd(t.cutoffUsd)} | ${count(t.wallets)} | ${t.sharePct.toFixed(2)}% |`,
+    ),
+    "",
+    "### Deposits of top traders",
+    "",
+    "Groups are selected by lifetime swap volume. Medians describe LP participants in each trader group, not every trader. Active-value medians exclude unpriced portfolios; deposit medians include fully withdrawn historical LPs with priced flows.",
+    "",
+    "| Trader group | Trader volume entry | Ever LP / traders | Active LPs | Median active LP | Median cumulative deposits |",
+    "| --- | ---: | ---: | ---: | ---: | ---: |",
+    ...lp.traderCohorts.map(
+      (c) =>
+        `| Top ${c.percent}% | ${usd(c.volumeCutoffUsd)} | ${count(c.lpEver)} / ${count(c.traderWallets)} | ${count(c.activeLPs)} | ${usd(c.medianActiveUsdAmongValuedLPs)} | ${usd(c.medianLifetimeDepositsUsdAmongPricedLPs)} |`,
+    ),
+    "",
+    "### LP snapshot verification",
+    "",
+    `${count(lp.quality.storageVerifiedPools)} pools verified against pinned contract storage; ${count(lp.quality.eventReplayedPools)} pools reconstructed from complete LP and BinSwapped events.`,
+    ...lp.chainCutoffs.map(
+      (c) =>
+        `- ${CHAINS.find((chain) => chain.id === c.chainId)?.name}: block ${c.blockNumber}, ${new Date(c.timestamp * 1000).toISOString()}, hash ${c.blockHash}.`,
+    ),
   );
   fs.writeFileSync("ANALYSIS.md", lines.join("\n") + "\n");
   return report;

@@ -9,6 +9,9 @@ import { exportReport } from "./report";
 import { CHAINS } from "./core";
 import { backupDatabase } from "./snapshots";
 import { acquireWriterLock } from "./lock";
+import { indexLPChain } from "./lp/indexer";
+import { valueLPChain } from "./lp/valuation";
+import { valueLPFromEvents } from "./lp/replay";
 const releaseLock = acquireWriterLock();
 const db = openDb();
 db.prepare(
@@ -43,6 +46,17 @@ try {
   const results = await Promise.allSettled(
     CHAINS.map((c) => indexChain(db, pools, c, days)),
   );
+  if (!process.argv.includes("--swaps-only")) {
+    const lp = await Promise.allSettled(
+      CHAINS.map(async (c) => {
+        await indexLPChain(db, pools, c);
+        if (c.id === 56 && !process.env.LP_RPC_56)
+          await valueLPFromEvents(db, pools, c);
+        else await valueLPChain(db, pools, c);
+      }),
+    );
+    results.push(...lp);
+  }
   const report = exportReport(db);
   const errors = results.filter((r) => r.status === "rejected");
   for (const result of errors)

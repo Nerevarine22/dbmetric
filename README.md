@@ -1,6 +1,6 @@
 # Metric Trader Intelligence
 
-An English-language Next.js dashboard for Metric Protocol trader activity on Ethereum, BNB Chain and Robinhood Chain. It uses real pool metadata and indexed Swap events, with no sample wallets or fabricated metrics.
+An English-language Next.js dashboard for Metric Protocol traders and liquidity providers on Ethereum, BNB Chain and Robinhood Chain. It uses real pool metadata and indexed contract events, with no sample wallets or fabricated metrics.
 
 ## Run locally
 
@@ -27,7 +27,7 @@ npm run sync:watch -- --minutes=60
 npm run backup                  # Consistent SQLite backup using the SQLite online backup API
 ```
 
-The default first scan covers one day. Subsequent scans reuse the database and request blocks after the last committed cursor, plus a short finalized overlap. Repeated pages replace the same `(chain_id, tx_hash, log_index)` rows. A page and its cursor commit atomically; interruptions resume from the last committed page. The watcher runs scans sequentially. A PID lock prevents simultaneous CLI scans, exports and backups; an abandoned lock is recovered after its process exits. Use one writer per data directory.
+The default first swap scan covers one day. LP history always starts at pool creation; BNB also backfills bin swaps once. Subsequent scans reuse the database and request blocks after the last committed cursor, plus a short finalized overlap. Repeated pages replace the same `(chain_id, tx_hash, log_index)` rows. A page and its cursor commit atomically; interruptions resume from the last committed page. The watcher runs scans sequentially. A PID lock prevents simultaneous CLI scans, exports and backups; an abandoned lock is recovered after its process exits. Use one writer per data directory.
 
 New pools trigger a rewind to their creation block if it precedes the cursor. Metadata is paginated with `minTvlFiat=0` and filtered by the canonical factory. Previously registered pools remain in the local registry when a later API response omits them.
 
@@ -37,16 +37,16 @@ Requests are recorded in SQLite's `api_requests` with network, range, status and
 
 ## Saved data
 
-| Location                                    | Contents                                                  | Git       |
-| ------------------------------------------- | --------------------------------------------------------- | --------- |
-| `data/metric.sqlite`                        | Decoded swaps, pool registry, cursors, runs and API usage | Ignored   |
-| `data/snapshots/<timestamp>-<hash>.json.gz` | Immutable compressed analytics snapshot                   | Ignored   |
-| `data/checkpoints/<timestamp>.json`         | Cursors, registry, checksum and usage at export           | Ignored   |
-| `data/checkpoints/latest.json`              | Latest checkpoint manifest                                | Ignored   |
-| `data/backups/*.sqlite`                     | Full consistent backups via `npm run backup`              | Ignored   |
-| `public/analytics.json`                     | Latest browser-ready snapshot                             | Committed |
-| `ANALYSIS.md`                               | Latest readable volume and concentration report           | Committed |
-| `.env`                                      | Private credentials                                       | Ignored   |
+| Location                                    | Contents                                                                      | Git       |
+| ------------------------------------------- | ----------------------------------------------------------------------------- | --------- |
+| `data/metric.sqlite`                        | Swaps, LP events/positions, bin accumulators, registry, cursors and API usage | Ignored   |
+| `data/snapshots/<timestamp>-<hash>.json.gz` | Immutable compressed analytics snapshot                                       | Ignored   |
+| `data/checkpoints/<timestamp>.json`         | Cursors, registry, checksum and usage at export                               | Ignored   |
+| `data/checkpoints/latest.json`              | Latest checkpoint manifest                                                    | Ignored   |
+| `data/backups/*.sqlite`                     | Full consistent backups via `npm run backup`                                  | Ignored   |
+| `public/analytics.json`                     | Latest browser-ready snapshot                                                 | Committed |
+| `ANALYSIS.md`                               | Latest readable volume and concentration report                               | Committed |
+| `.env`                                      | Private credentials                                                           | Ignored   |
 
 Aggregate JSON is **not** a replacement for the raw database. Keep the database or a SQLite backup to resume without refetching history. Copy backups off the scanner machine for disaster recovery. Archived snapshots have timestamps and checksums and are not automatically deleted.
 
@@ -80,7 +80,30 @@ Do not use a Vercel Function's local filesystem as a durable SQLite database. If
 - **Leaderboard:** top 1,000 wallets per network/window for a compact public snapshot. Search, sorting and CSV export apply to listed rows. Aggregate metrics use all traders.
 - **Refresh:** reloads the latest published JSON without triggering indexing.
 
-LP TVL, LP users and profitability are outside this first release.
+## Liquidity providers
+
+The dashboard includes a separate active-LP leaderboard, Top 1% / 5% / 10% capital thresholds, cumulative deposits and withdrawals, and LP participation inside the lifetime top-trader volume cohorts.
+
+```sh
+npm run sync:lp                         # Index LP deltas, value positions and export
+npm run sync:lp -- --index-only         # Only LiquidityAdded / LiquidityRemoved history
+npm run sync:lp -- --value-only         # Reuse indexed LP history
+npm run sync:lp -- --value-only --chain=56
+npm run sync:lp -- --from-events --chain=1 # Optional event-replay valuation for another chain
+npm run sync -- --swaps-only            # Skip the LP refresh
+```
+
+Normal `npm run sync` now updates swaps and LP data. Standalone LP commands target the existing finalized swap-index block for each chain. LP history has independent atomic checkpoints and starts at pool creation. The indexed LP owner is event.provider; indexed and legacy non-indexed uint80 salt layouts are supported.
+
+**Ethereum and Robinhood:** pinned-block storage reads verify every open owner/salt/bin share balance, reconcile owner share supply with bin total shares, and reconcile bin reserves with pool slot1 totals. Multicall batches reduce HTTP calls and split if a provider rejects a large batch. An `LP_RPC_<chainId>` override can select an archive endpoint. Immutable scale multipliers and token/factory identity are verified from getImmutables().
+
+**BNB default:** public archive storage access is restricted, so the scanner reconstructs bin reserves from LiquidityAdded, LiquidityRemoved and BinSwapped. BinSwapped deltas already include the retained LP fee; the fee is not added a second time. Immutable scales are verified through latest-state reads of the immutable contract parameters. Compact per-pool/bin accumulators commit atomically with each HyperSync cursor and finalized block hash. Restarting appends from those cursors; a hash mismatch triggers a replay of the affected prefix. Newly registered pools backfill separately. This requires a one-time BinSwapped history scan, after which only new events are fetched. Set LP_RPC_56 to opt into pinned archive storage reads instead.
+
+Active LP USD is the current share of both token balances, using synced metadata quotes. Lifetime deposits and withdrawals are normalized native token flows repriced at those same quotes, **not historical execution USD or profit**. Adding and withdrawing the same capital repeatedly increases gross historical flows, while only remaining shares determine active capital.
+
+Only fully priced positive active portfolios participate in LP capital cohorts. Missing prices, incomplete history and failed verification are disclosed; unpriced amounts are not silently treated as zero. Cross-chain views use each chain's disclosed block cutoff and show the earliest timestamp. Trader comparisons keep the trader snapshot's cutoff; the LP snapshot date is shown separately.
+
+LP events, compact bin-swap deltas and coverage, raw open positions, pool verification status and valuation block hashes live in SQLite and its backups. JSON snapshots and checkpoint manifests retain the LP coverage and valuation provenance. Profitability remains outside scope.
 
 ## Verification
 
@@ -90,6 +113,6 @@ npm run typecheck
 npm run build
 ```
 
-Tests cover signed packing, one-leg volume, missing prices, sender/router attribution, cross-chain deduplication, activity windows, SQL/reference parity, idempotent writes and cutoff ties.
+Tests cover signed packing, one-leg volume, missing prices, sender/router attribution, cross-chain deduplication, activity windows, SQL/reference parity, idempotent writes and cutoff ties. LP tests also cover both salt layouts, scaled two-token flows, partial exits, share/reserve reconciliation, bin-swap replay, stale valuation exclusion and trader-to-LP joins by owner. A live Ethereum cross-check matched event-replayed token amounts exactly to archive-storage-verified positions; a completed BNB replay made zero HyperSync calls on restart.
 
 Primary references: [Metric contracts](https://github.com/Metricxyz/pool-contracts), [Metric public metadata](https://api.metric.xyz/public/v1/evm/metadata?chainIds=1,56,4663&minTvlFiat=0), [HyperSync query specification](https://docs.envio.dev/docs/HyperSync/hypersync-query).

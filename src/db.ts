@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import pathUtils from "node:path";
 import type { Pool, Swap } from "./core";
+import { initLP } from "./lp/db";
 export function openDb(path = "data/metric.sqlite") {
   fs.mkdirSync("data", { recursive: true });
   const db = new DatabaseSync(path);
@@ -44,6 +45,7 @@ export function openDb(path = "data/metric.sqlite") {
   db.exec(
     "CREATE INDEX IF NOT EXISTS swaps_analytics_cover ON swaps(timestamp,chain_id,trader,tx_hash,pool_address,volume_usd,price_mode,sender_router)",
   );
+  initLP(db);
   return db;
 }
 export function savePools(db: DatabaseSync, pools: Pool[]) {

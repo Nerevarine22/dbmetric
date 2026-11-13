@@ -5,8 +5,9 @@ export async function queryHyperSync(
   from: number,
   to: number,
   addresses: string[],
-  topic: string,
+  topic: string | string[],
   onRequest?: (status: number, bytes: number) => void,
+  light = false,
 ) {
   for (let attempt = 0; ; attempt++) {
     const r = await fetch(`https://${chainId}.hypersync.xyz/query`, {
@@ -18,21 +19,28 @@ export async function queryHyperSync(
       body: JSON.stringify({
         from_block: from,
         to_block: to,
-        logs: [{ address: addresses, topics: [[topic]] }],
+        logs: [
+          {
+            address: addresses,
+            topics: [Array.isArray(topic) ? topic : [topic]],
+          },
+        ],
         field_selection: {
-          log: [
-            "address",
-            "data",
-            "topic0",
-            "topic1",
-            "topic2",
-            "transaction_hash",
-            "log_index",
-            "block_number",
-            "removed",
-          ],
-          transaction: ["hash", "from"],
-          block: ["number", "timestamp"],
+          log: light
+            ? ["address", "data", "block_number", "removed"]
+            : [
+                "address",
+                "data",
+                "topic0",
+                "topic1",
+                "topic2",
+                "transaction_hash",
+                "log_index",
+                "block_number",
+                "removed",
+              ],
+          transaction: light ? [] : ["hash", "from"],
+          block: light ? [] : ["number", "timestamp"],
         },
         max_num_logs: 50000,
         max_num_transactions: 50000,

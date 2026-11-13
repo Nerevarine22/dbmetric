@@ -10,7 +10,8 @@
     "test": "node --import tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "sync:watch": "node --import tsx src/watch.ts",
-    "backup": "node --env-file-if-exists=.env --import tsx src/cli.ts --backup"
+    "backup": "node --env-file-if-exists=.env --import tsx src/cli.ts --backup",
+    "sync:lp": "node --env-file-if-exists=.env --import tsx src/lp/cli.ts"
   },
   "dependencies": {
     "next": "^15.5.0",

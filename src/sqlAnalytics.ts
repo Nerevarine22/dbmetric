@@ -135,11 +135,35 @@ export function sqlAnalytics(
       `SELECT CAST(timestamp/86400 AS INTEGER)*86400 day,COUNT(DISTINCT trader) wallets,SUM(COALESCE(volume_usd,0)) volumeUsd FROM swaps INDEXED BY swaps_analytics_cover WHERE ${where} GROUP BY day ORDER BY day`,
     )
     .all(...params);
-  db.exec("DROP TABLE temp.metric_profiles");
   console.log(
     `Aggregated ${summary.totalWallets} wallets in ${((Date.now() - started) / 1000).toFixed(1)}s`,
   );
   const { positiveWallets, ...metrics } = summary;
+  const cohorts = [1, 5, 10].map((percent) => {
+    const size = Math.min(
+      Math.ceil((summary.totalWallets * percent) / 100),
+      summary.positiveWallets,
+    );
+    const cutoff = size
+      ? Number(
+          db
+            .prepare(
+              "SELECT volumeUsd FROM metric_profiles ORDER BY volumeUsd DESC LIMIT 1 OFFSET ?",
+            )
+            .get(size - 1)?.volumeUsd,
+        )
+      : null;
+    const row =
+      cutoff === null
+        ? { n: 0 }
+        : db
+            .prepare(
+              "SELECT COUNT(*) n FROM metric_profiles WHERE volumeUsd>=? AND volumeUsd>0",
+            )
+            .get(cutoff)!;
+    return { percent, cutoffUsd: cutoff, wallets: Number(row.n) };
+  });
+  db.exec("DROP TABLE temp.metric_profiles");
   return {
     ...metrics,
     wallets,
@@ -156,5 +180,6 @@ export function sqlAnalytics(
       ? middle.reduce((a, b) => a + b, 0) / middle.length
       : null,
     daily,
+    cohorts,
   };
 }

@@ -30,4 +30,33 @@ The top-volume cohort contains 232 addresses and accounts for 75.15% of estimate
 Of 145,633 swaps, 145,633 have a USD estimate; 44,818 use current metadata prices rather than a stable-unit estimate.
 Swaps and transaction counts are intentionally separate: multi-pool routes can inflate swap counts and sum turnover across several pools in one transaction. High volume alone does not establish profitability or identify an individual user.
 
-This analysis covers transaction senders in registered canonical-factory pools. It does not measure LP users, LP TVL, profits or wash-trading-adjusted end-user notional. USD values are estimates, not historical execution prices.
+Trader analysis covers transaction senders in registered canonical-factory pools. LP analysis below separately identifies position owners. Neither measures profits or wash-trading-adjusted end-user notional. USD values are estimates, not historical execution prices.
+
+## Liquidity providers
+
+Full LP history: complete. 5,686 historical owners; 4,179 owners with open shares; 4,179 positive, fully valued active portfolios.
+Known active liquidity: $21,207,800. Cumulative deposits: $128,829,695; withdrawals: $107,443,431. Both token legs use synced spot quotes; repeated capital counts again in flows.
+0 active portfolios excluded from ranking; 0 pools failed valuation checks. Thresholds apply to positive, fully valued portfolios.
+
+| LP cohort | Active capital entry cutoff | Wallets including ties | Share of valued capital |
+| --- | ---: | ---: | ---: |
+| Top 1% | $87,944 | 42 | 59.37% |
+| Top 5% | $11,009 | 209 | 82.86% |
+| Top 10% | $4,273 | 418 | 89.94% |
+
+### Deposits of top traders
+
+Groups are selected by lifetime swap volume. Medians describe LP participants in each trader group, not every trader. Active-value medians exclude unpriced portfolios; deposit medians include fully withdrawn historical LPs with priced flows.
+
+| Trader group | Trader volume entry | Ever LP / traders | Active LPs | Median active LP | Median cumulative deposits |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Top 1% | $230,972 | 88 / 2,752 | 50 | $5,231 | $18,985 |
+| Top 5% | $19,161 | 503 / 13,759 | 315 | $1,954 | $11,633 |
+| Top 10% | $6,027 | 952 / 27,518 | 609 | $1,276 | $5,616 |
+
+### LP snapshot verification
+
+769 pools verified against pinned contract storage; 352 pools reconstructed from complete LP and BinSwapped events.
+- Ethereum: block 26406716, 2026-11-13T14:43:35.000Z, hash 0x1fed92023157c57c51d0c8490b1f8df18cfee2c49d3d532cf3af8f36ca992fe4.
+- BNB Chain: block 133371439, 2026-11-13T14:55:58.000Z, hash 0x0f11f085a0525a467a0983c286e346a8f37e2d5d794f431c724d606961d67b4f.
+- Robinhood: block 113440739, 2026-11-13T14:56:33.000Z, hash 0xa1acaeba0de03c477abd73948e36abb5b4f60394efc812671b00d245c36f3df1.

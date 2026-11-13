@@ -33,6 +33,14 @@ export function archiveSnapshot(
     snapshotFile: file,
     databaseFile: "data/metric.sqlite",
     coverage: report.coverage,
+    liquidityCoverage: (report.liquidity as { coverage?: unknown } | undefined)
+      ?.coverage,
+    liquidityValuationHeads: (
+      report.liquidity as { valuationHeads?: unknown } | undefined
+    )?.valuationHeads,
+    liquidityBinSwapCoverage: (
+      report.liquidity as { binSwapCoverage?: unknown } | undefined
+    )?.binSwapCoverage,
     poolRegistry: db
       .prepare("SELECT chain_id,address FROM pools ORDER BY chain_id,address")
       .all(),
