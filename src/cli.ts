@@ -1,0 +1,70 @@
+import fs from "node:fs";
+import { loadEnvFile } from "node:process";
+for (const file of [".env.local", "../.env", "../.env.local"])
+  if (fs.existsSync(file)) loadEnvFile(file);
+import { openDb, savePools, loadPools } from "./db";
+import { syncPools } from "./apiSync";
+import { indexChain } from "./indexer";
+import { exportReport } from "./report";
+import { CHAINS } from "./core";
+import { backupDatabase } from "./snapshots";
+const db = openDb();
+if (process.argv.includes("--backup")) {
+  console.log("Consistent SQLite backup:", await backupDatabase(db));
+  db.close();
+  process.exit(0);
+}
+if (process.argv.includes("--export-only")) {
+  exportReport(db);
+  db.close();
+  process.exit(0);
+}
+const arg = process.argv.find((a) => a.startsWith("--days="))?.slice(7) ?? "1";
+const days = arg === "all" ? "all" : Number(arg);
+if (days !== "all" && (!Number.isFinite(days) || days <= 0))
+  throw new Error("Use --days=1, --days=7 or --days=all");
+const runId = Date.now();
+db.prepare("INSERT INTO runs VALUES(?,?,?,?)").run(
+  runId,
+  Math.floor(runId / 1000),
+  null,
+  "running",
+);
+try {
+  const fetched = await syncPools();
+  savePools(db, fetched);
+  const pools = loadPools(db);
+  console.log(`Synced ${pools.length} pools from the canonical factory`);
+  const results = await Promise.allSettled(
+    CHAINS.map((c) => indexChain(db, pools, c, days)),
+  );
+  const report = exportReport(db);
+  const errors = results.filter((r) => r.status === "rejected");
+  for (const result of errors)
+    if (result.status === "rejected")
+      console.error(
+        String(result.reason).replaceAll(
+          process.env.ENVIO_API_TOKEN ?? "__NONE__",
+          "[redacted]",
+        ),
+      );
+  db.prepare("UPDATE runs SET completed_at=?,status=? WHERE id=?").run(
+    Math.floor(Date.now() / 1000),
+    errors.length ? "partial" : "complete",
+    runId,
+  );
+  console.log(
+    `Report: public/analytics.json; indexed ${db.prepare("SELECT COUNT(*) n FROM swaps").get()?.n} swaps; ${report.poolCount} pools`,
+  );
+  if (errors.length) process.exitCode = 1;
+} catch (e) {
+  db.prepare("UPDATE runs SET completed_at=?,status=? WHERE id=?").run(
+    Math.floor(Date.now() / 1000),
+    "failed",
+    runId,
+  );
+  if (loadPools(db).length) exportReport(db);
+  throw e;
+} finally {
+  db.close();
+}
