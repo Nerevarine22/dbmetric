@@ -6,48 +6,113 @@ export function sqlAnalytics(
   until: number,
   chainId = 0,
 ) {
+  const started = Date.now();
+  console.log(`Aggregating ${chainId || "all chains"}: ${since}..${until}`);
   const where =
     "timestamp>=? AND timestamp<=?" + (chainId ? " AND chain_id=?" : "");
   const params = chainId ? [since, until, chainId] : [since, until];
-  const routerSql = [...ROUTERS].map((a) => `'${a}'`).join(",");
+  const routers = [...ROUTERS].map((a) => `'${a}'`).join(",");
+  db.exec("DROP TABLE IF EXISTS temp.metric_profiles");
+  // Keep population summaries in SQLite; only the displayed top 1,000 rows enter JS memory.
+  db.prepare(
+    `CREATE TEMP TABLE metric_profiles AS SELECT trader address,
+    SUM(COALESCE(volume_usd,0)) volumeUsd,COUNT(*) swaps,
+    COUNT(DISTINCT CAST(chain_id AS TEXT)||':'||tx_hash) transactions,
+    COUNT(volume_usd) pricedSwaps,AVG(volume_usd) avgSwapUsd,
+    GROUP_CONCAT(DISTINCT chain_id) chains,
+    COUNT(DISTINCT CAST(chain_id AS TEXT)||':'||pool_address) pools,
+    MIN(timestamp) firstSeen,MAX(timestamp) lastActive,
+    COUNT(DISTINCT CAST(timestamp/86400 AS INTEGER)) activeDays,
+    100.0*SUM(CASE WHEN sender_router IN (${routers}) THEN 1 ELSE 0 END)/COUNT(*) directRouterPct,
+    SUM(price_mode='metadata-spot-estimate') spotEstimatedSwaps
+    FROM swaps INDEXED BY swaps_analytics_cover WHERE ${where} GROUP BY trader`,
+  ).run(...params);
+  db.exec(
+    "CREATE INDEX temp.metric_profiles_volume ON metric_profiles(volumeUsd DESC,address)",
+  );
+  const summary = db
+    .prepare(
+      `SELECT COUNT(*) totalWallets,COALESCE(SUM(volumeUsd),0) totalVolumeUsd,
+    COALESCE(SUM(swaps),0) swapCount,COALESCE(SUM(transactions),0) transactionCount,
+    COALESCE(SUM(pricedSwaps),0) pricedSwaps,COALESCE(SUM(spotEstimatedSwaps),0) spotEstimatedSwaps,
+    COALESCE(SUM(lastActive>=?),0) active24h,COALESCE(SUM(lastActive>=?),0) active7d,
+    COALESCE(SUM(volumeUsd>0),0) positiveWallets FROM metric_profiles`,
+    )
+    .get(until - 86400, until - 604800) as {
+    totalWallets: number;
+    totalVolumeUsd: number;
+    swapCount: number;
+    transactionCount: number;
+    pricedSwaps: number;
+    spotEstimatedSwaps: number;
+    active24h: number;
+    active7d: number;
+    positiveWallets: number;
+  };
+  const size = Math.min(
+    Math.max(1, Math.ceil(summary.totalWallets / 100)),
+    summary.positiveWallets,
+  );
+  const cutoff = size
+    ? Number(
+        db
+          .prepare(
+            "SELECT volumeUsd FROM metric_profiles ORDER BY volumeUsd DESC LIMIT 1 OFFSET ?",
+          )
+          .get(size - 1)?.volumeUsd,
+      )
+    : null;
+  const top =
+    cutoff === null
+      ? { n: 0, volume: 0 }
+      : (db
+          .prepare(
+            "SELECT COUNT(*) n,SUM(volumeUsd) volume FROM metric_profiles WHERE volumeUsd>=? AND volumeUsd>0",
+          )
+          .get(cutoff) as { n: number; volume: number });
+  const top10 = Number(
+    db
+      .prepare(
+        "SELECT COALESCE(SUM(volumeUsd),0) n FROM (SELECT volumeUsd FROM metric_profiles ORDER BY volumeUsd DESC LIMIT 10)",
+      )
+      .get()?.n ?? 0,
+  );
+  const middle = summary.totalWallets
+    ? db
+        .prepare(
+          "SELECT volumeUsd FROM metric_profiles ORDER BY volumeUsd DESC LIMIT ? OFFSET ?",
+        )
+        .all(
+          summary.totalWallets % 2 ? 1 : 2,
+          Math.floor((summary.totalWallets - 1) / 2),
+        )
+        .map((r) => Number(r.volumeUsd))
+    : [];
   const rows = db
     .prepare(
-      `SELECT s.trader address,SUM(COALESCE(s.volume_usd,0)) volumeUsd,COUNT(*) swaps,
-    COUNT(DISTINCT CAST(s.chain_id AS TEXT)||':'||s.tx_hash) transactions,COUNT(s.volume_usd) pricedSwaps,
-    AVG(s.volume_usd) avgSwapUsd,GROUP_CONCAT(DISTINCT s.chain_id) chains,
-    COUNT(DISTINCT CAST(s.chain_id AS TEXT)||':'||s.pool_address) pools,MIN(s.timestamp) firstSeen,MAX(s.timestamp) lastActive,
-    COUNT(DISTINCT CAST(s.timestamp/86400 AS INTEGER)) activeDays,
-    100.0*SUM(CASE WHEN s.sender_router IN (${routerSql}) THEN 1 ELSE 0 END)/COUNT(*) directRouterPct,
-    '—' favoritePool
-    FROM swaps s INDEXED BY swaps_analytics_cover WHERE ${where}
-    GROUP BY s.trader ORDER BY volumeUsd DESC,address`,
+      "SELECT *,RANK() OVER(ORDER BY volumeUsd DESC) rank FROM metric_profiles ORDER BY volumeUsd DESC,address LIMIT 1000",
     )
-    .all(...params) as unknown as (Omit<Wallet, "chains"> & {
-    chains: string;
-  })[];
-  const totalVolumeUsd = rows.reduce((n, w) => n + w.volumeUsd, 0);
-  const topSize = Math.max(1, Math.ceil(rows.length / 100));
-  let rank = 1;
-  const wallets: Wallet[] = rows.map((w, i) => {
-    if (i > 0 && w.volumeUsd !== rows[i - 1].volumeUsd) rank = i + 1;
-    return {
-      ...w,
-      chains: w.chains.split(",").map(Number),
-      rank,
-      topPercent: (100 * rank) / rows.length,
-      cohort: w.volumeUsd > 0 && rank <= topSize ? "Top 1%" : "Rest",
-      sharePct: totalVolumeUsd ? (100 * w.volumeUsd) / totalVolumeUsd : 0,
-    };
-  });
-  const top = wallets.filter((w) => w.cohort === "Top 1%");
-  const listed = wallets.slice(0, 1000);
-  if (listed.length) {
+    .all() as unknown as (Omit<Wallet, "chains"> & { chains: string })[];
+  const wallets: Wallet[] = rows.map((w) => ({
+    ...w,
+    chains: w.chains.split(",").map(Number),
+    favoritePool: "—",
+    topPercent: (100 * w.rank) / summary.totalWallets,
+    cohort:
+      cutoff !== null && w.volumeUsd >= cutoff && w.volumeUsd > 0
+        ? "Top 1%"
+        : "Rest",
+    sharePct: summary.totalVolumeUsd
+      ? (100 * w.volumeUsd) / summary.totalVolumeUsd
+      : 0,
+  }));
+  if (wallets.length) {
     const favoriteRows = db
       .prepare(
-        `SELECT trader,chain_id,pool_address,SUM(COALESCE(volume_usd,0)) v FROM swaps INDEXED BY swaps_analytics_cover WHERE ${where} AND trader IN (${listed.map(() => "?").join(",")}) GROUP BY trader,chain_id,pool_address ORDER BY trader,v DESC,pool_address`,
+        `SELECT trader,chain_id,pool_address,SUM(COALESCE(volume_usd,0)) v FROM swaps INDEXED BY swaps_analytics_cover WHERE ${where} AND trader IN (${wallets.map(() => "?").join(",")}) GROUP BY trader,chain_id,pool_address ORDER BY trader,v DESC,pool_address`,
       )
-      .all(...params, ...listed.map((w) => w.address));
-    const poolNames = new Map(
+      .all(...params, ...wallets.map((w) => w.address));
+    const names = new Map(
       db
         .prepare(
           "SELECT chain_id,address,json_extract(metadata,'$.pair') pair FROM pools",
@@ -56,51 +121,39 @@ export function sqlAnalytics(
         .map((p) => [`${p.chain_id}:${p.address}`, String(p.pair)]),
     );
     const favorites = new Map<string, string>();
-    for (const row of favoriteRows) {
-      const address = String(row.trader);
-      if (!favorites.has(address))
+    for (const p of favoriteRows)
+      if (!favorites.has(String(p.trader)))
         favorites.set(
-          address,
-          poolNames.get(`${row.chain_id}:${row.pool_address}`) ?? "—",
+          String(p.trader),
+          names.get(`${p.chain_id}:${p.pool_address}`) ?? "—",
         );
-    }
-    for (const wallet of listed)
+    for (const wallet of wallets)
       wallet.favoritePool = favorites.get(wallet.address) ?? "—";
   }
-  const sum = (rows: Wallet[]) => rows.reduce((n, w) => n + w.volumeUsd, 0);
-  const counts = db
-    .prepare(
-      `SELECT COUNT(*) swapCount,COUNT(DISTINCT CAST(chain_id AS TEXT)||':'||tx_hash) transactionCount,COUNT(volume_usd) pricedSwaps,COALESCE(SUM(price_mode='metadata-spot-estimate'),0) spotEstimatedSwaps FROM swaps WHERE ${where}`,
-    )
-    .get(...params) as {
-    swapCount: number;
-    transactionCount: number;
-    pricedSwaps: number;
-    spotEstimatedSwaps: number;
-  };
   const daily = db
     .prepare(
-      `SELECT CAST(timestamp/86400 AS INTEGER)*86400 day,COUNT(DISTINCT trader) wallets,SUM(COALESCE(volume_usd,0)) volumeUsd FROM swaps WHERE ${where} GROUP BY day ORDER BY day`,
+      `SELECT CAST(timestamp/86400 AS INTEGER)*86400 day,COUNT(DISTINCT trader) wallets,SUM(COALESCE(volume_usd,0)) volumeUsd FROM swaps INDEXED BY swaps_analytics_cover WHERE ${where} GROUP BY day ORDER BY day`,
     )
     .all(...params);
+  db.exec("DROP TABLE temp.metric_profiles");
+  console.log(
+    `Aggregated ${summary.totalWallets} wallets in ${((Date.now() - started) / 1000).toFixed(1)}s`,
+  );
+  const { positiveWallets, ...metrics } = summary;
   return {
-    wallets: listed,
-    listedWallets: Math.min(1000, wallets.length),
-    totalWallets: wallets.length,
-    active24h: wallets.filter((w) => w.lastActive >= until - 86400).length,
-    active7d: wallets.filter((w) => w.lastActive >= until - 604800).length,
-    totalVolumeUsd,
-    ...counts,
-    top1Count: top.length,
-    top1SharePct: totalVolumeUsd ? (100 * sum(top)) / totalVolumeUsd : 0,
-    top10SharePct: totalVolumeUsd
-      ? (100 * sum(wallets.slice(0, 10))) / totalVolumeUsd
+    ...metrics,
+    wallets,
+    listedWallets: wallets.length,
+    top1Count: top.n,
+    top1SharePct: summary.totalVolumeUsd
+      ? (100 * top.volume) / summary.totalVolumeUsd
       : 0,
-    cutoffUsd: top.at(-1)?.volumeUsd ?? null,
-    medianVolumeUsd: wallets.length
-      ? (wallets[Math.floor((wallets.length - 1) / 2)].volumeUsd +
-          wallets[Math.ceil((wallets.length - 1) / 2)].volumeUsd) /
-        2
+    top10SharePct: summary.totalVolumeUsd
+      ? (100 * top10) / summary.totalVolumeUsd
+      : 0,
+    cutoffUsd: cutoff,
+    medianVolumeUsd: middle.length
+      ? middle.reduce((a, b) => a + b, 0) / middle.length
       : null,
     daily,
   };

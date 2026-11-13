@@ -177,6 +177,34 @@ test("cohort includes ties at cutoff and ranks are deterministic", () => {
   assert.equal(s.wallets[0].rank, 1);
   assert.equal(s.wallets[1].rank, 1);
   assert.equal(s.wallets[2].rank, 3);
+  const db = openDb(":memory:");
+  savePools(db, [pool]);
+  savePage(db, swaps, 1, 5, 1000000);
+  const actual = sqlAnalytics(db, 0, 1000000);
+  assert.equal(actual.top1Count, 2);
+  assert.equal(actual.wallets[1].rank, 1);
+  assert.equal(actual.wallets[2].rank, 3);
+  db.close();
+});
+test("public row limit does not truncate population metrics", () => {
+  const db = openDb(":memory:");
+  savePools(db, [pool]);
+  const rows = Array.from({ length: 1100 }, (_, i) =>
+    swap({
+      traderAddress: "0x" + i.toString(16).padStart(40, "0"),
+      txHash: "0x" + i,
+      volumeUsd: 1100 - i,
+    }),
+  );
+  savePage(db, rows, 1, 5, 1000000);
+  const s = sqlAnalytics(db, 0, 1000000);
+  assert.equal(s.wallets.length, 1000);
+  assert.equal(s.totalWallets, 1100);
+  assert.equal(s.top1Count, 11);
+  assert.equal(s.cutoffUsd, 1090);
+  assert.equal(s.medianVolumeUsd, 550.5);
+  assert.equal(s.totalVolumeUsd, 605550);
+  db.close();
 });
 test("archived snapshot decompresses exactly and its checkpoint checksum matches", () => {
   const db = openDb(":memory:");

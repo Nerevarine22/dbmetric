@@ -45,6 +45,7 @@ Requests are recorded in SQLite's `api_requests` with network, range, status and
 | `data/checkpoints/latest.json`              | Latest checkpoint manifest                                | Ignored   |
 | `data/backups/*.sqlite`                     | Full consistent backups via `npm run backup`              | Ignored   |
 | `public/analytics.json`                     | Latest browser-ready snapshot                             | Committed |
+| `ANALYSIS.md`                               | Latest readable volume and concentration report           | Committed |
 | `.env`                                      | Private credentials                                       | Ignored   |
 
 Aggregate JSON is **not** a replacement for the raw database. Keep the database or a SQLite backup to resume without refetching history. Copy backups off the scanner machine for disaster recovery. Archived snapshots have timestamps and checksums and are not automatically deleted.
@@ -59,7 +60,7 @@ To publish new data initially:
 
 ```sh
 npm run sync
-git add public/analytics.json
+git add public/analytics.json ANALYSIS.md
 git commit -m "Update Metric analytics snapshot"
 git push origin main
 ```
