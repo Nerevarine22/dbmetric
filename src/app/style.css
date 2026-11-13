@@ -1192,6 +1192,41 @@ th {
 .lp-section {
   margin-top: 38px;
 }
+.cohort-section {
+  margin-top: 38px;
+}
+.cohort-table {
+  min-width: 720px;
+  table-layout: fixed;
+}
+.cohort-table thead th:first-child {
+  width: 40%;
+}
+.cohort-table td {
+  height: auto;
+  padding-top: 13px;
+  padding-bottom: 13px;
+}
+.cohort-table th[scope="row"] {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.cohort-table th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--panel);
+  z-index: 1;
+  max-width: 330px;
+  white-space: normal;
+}
+.cohort-divider th {
+  color: var(--accent);
+  padding-top: 24px;
+  padding-bottom: 14px;
+}
 .lp-heading {
   display: flex;
   justify-content: space-between;
@@ -1244,6 +1279,12 @@ th {
   margin-top: 22px;
 }
 @media (max-width: 760px) {
+  .cohort-table {
+    min-width: 660px;
+  }
+  .cohort-table thead th:first-child {
+    width: 160px;
+  }
   .lp-heading {
     align-items: flex-start;
     flex-direction: column;

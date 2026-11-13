@@ -30,6 +30,7 @@ export type LPScope = {
     totalKnownActiveUsd: number;
     medianActiveUsdAmongValuedLPs: number | null;
     medianLifetimeDepositsUsdAmongPricedLPs: number | null;
+    medianLifetimeDepositsUsdAcrossAllTraders: number | null;
     medianActiveUsdAcrossAllTraders: number | null;
     traderAsOf: number;
   }[];
@@ -207,57 +208,6 @@ export function LiquiditySection({
           </p>
         ))}
       </details>
-      <article className="panel leaderboard">
-        <div className="table-heading">
-          <div>
-            <span className="eyebrow">TRADERS × LIQUIDITY</span>
-            <h2>Do the top traders also provide liquidity?</h2>
-          </div>
-        </div>
-        <p className="listing-note">
-          Groups selected by lifetime swap volume. Medians below describe LP
-          participants inside each trader group, using the LP snapshot&apos;s
-          prices and balances.
-        </p>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Trader cohort</th>
-                <th className="numeric">Volume entry ≈</th>
-                <th className="numeric">Ever an LP</th>
-                <th className="numeric">Active LPs</th>
-                <th className="numeric">Known active capital ≈</th>
-                <th className="numeric">Median active LP ≈</th>
-                <th className="numeric">Median lifetime deposits ≈</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.traderCohorts.map((c) => (
-                <tr key={c.percent}>
-                  <td>Top {c.percent}% traders</td>
-                  <td className="numeric">{usd(c.volumeCutoffUsd)}</td>
-                  <td className="numeric">
-                    {number(c.lpEver)} / {number(c.traderWallets)}
-                  </td>
-                  <td className="numeric">
-                    {number(c.activeLPs)}
-                    {c.unpricedActiveLPs > 0 &&
-                      ` (${c.unpricedActiveLPs} unpriced)`}
-                  </td>
-                  <td className="numeric">{usd(c.totalKnownActiveUsd)}</td>
-                  <td className="numeric">
-                    {usd(c.medianActiveUsdAmongValuedLPs)}
-                  </td>
-                  <td className="numeric">
-                    {usd(c.medianLifetimeDepositsUsdAmongPricedLPs)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </article>
       <article className="panel leaderboard lp-leaderboard">
         <div className="table-heading">
           <div>

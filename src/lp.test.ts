@@ -337,6 +337,11 @@ test("LP writes are idempotent and trader comparison joins LP owners rather than
   assert.equal(comparison.traderCohorts[0].lpEver, 0);
   assert.equal(comparison.traderCohorts[1].lpEver, 1);
   assert.equal(comparison.traderCohorts[1].medianActiveUsdAmongValuedLPs, 50);
+  assert.equal(comparison.traderCohorts[1].medianActiveUsdAcrossAllTraders, 25);
+  assert.equal(
+    comparison.traderCohorts[1].medianLifetimeDepositsUsdAcrossAllTraders,
+    scope.wallets[0].lifetimeDepositsUsd / 2,
+  );
   assert.equal(comparison.traderWallets[funder], null);
   assert.equal(comparison.traderWallets[e.owner].activeUsd, 50);
   db.prepare("UPDATE lp_pool_valuations SET block_number=9").run();

@@ -339,8 +339,17 @@ export function buildLPReport(
               .filter((w) => w.lifetimeDepositsUsd !== null)
               .map((w) => w.lifetimeDepositsUsd!),
           ),
-          medianActiveUsdAcrossAllTraders:
-            knownZero > c.wallets / 2
+          medianLifetimeDepositsUsdAcrossAllTraders:
+            !historyComplete ||
+            members.some((w) => w.lifetimeDepositsUsd === null)
+              ? null
+              : median([
+                  ...Array(Math.max(0, noLP)).fill(0),
+                  ...members.map((w) => w.lifetimeDepositsUsd!),
+                ]),
+          medianActiveUsdAcrossAllTraders: !historyComplete
+            ? null
+            : knownZero > c.wallets / 2
               ? 0
               : active.some((w) => w.activeUsd === null)
                 ? null

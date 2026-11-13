@@ -44,6 +44,7 @@ export type Pool = {
   createdBlockNumber: number;
   createdTimestamp: number;
   poolFactoryAddress: string;
+  creator?: string;
 };
 export type Swap = {
   chainId: number;

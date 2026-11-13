@@ -32,6 +32,27 @@ Swaps and transaction counts are intentionally separate: multi-pool routes can i
 
 Trader analysis covers transaction senders in registered canonical-factory pools. LP analysis below separately identifies position owners. Neither measures profits or wash-trading-adjusted end-user notional. USD values are estimates, not historical execution prices.
 
+## Combined top-trader cohorts
+
+All columns describe the same lifetime-volume-ranked addresses. Top 1% is nested in Top 5% and Top 10%; ties are included. Medians are group descriptions, not additional entry requirements. LP balances use the separate disclosed chain cutoffs.
+
+| Metric | Top 1% | Top 5% | Top 10% |
+| --- | ---: | ---: | ---: |
+| Wallets | 2,752 | 13,759 | 27,518 |
+| Trading volume entry cutoff ≈ | $230,972 | $19,161 | $6,027 |
+| Lifetime volume total ≈ | $4,973,980,144 | $5,730,829,408 | $5,879,790,264 |
+| Volume in last 24h total ≈ | $276,153,342 | $306,770,090 | $311,965,976 |
+| Lifetime volume median ≈ | $449,941 | $62,917 | $19,161 |
+| Volume in last 24h median ≈ | $0 | $0 | $0 |
+| Swap transactions median | 156 | 18 | 10 |
+| Active UTC days median | 14 | 4 | 2 |
+| Pools created median | 0 | 0 | 0 |
+| Active LPs | 50 | 315 | 609 |
+| Active liquidity median, all traders ≈ | $0 | $0 | $0 |
+| Lifetime deposits median, all traders ≈ | $0 | $0 | $0 |
+| Active liquidity median, active LPs only ≈ | $5,231 | $1,954 | $1,276 |
+| Lifetime deposits median, historical LPs only ≈ | $18,985 | $11,633 | $5,616 |
+
 ## Liquidity providers
 
 Full LP history: complete. 5,686 historical owners; 4,179 owners with open shares; 4,179 positive, fully valued active portfolios.

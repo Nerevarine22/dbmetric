@@ -206,6 +206,74 @@ test("public row limit does not truncate population metrics", () => {
   assert.equal(s.totalVolumeUsd, 605550);
   db.close();
 });
+test("combined cohorts use one volume-ranked population, UTC days, unique transactions and cutoff-scoped creators", () => {
+  const db = openDb(":memory:");
+  const owner = (i: number) => "0x" + i.toString(16).padStart(40, "0");
+  savePools(db, [
+    { ...pool, creator: owner(1) },
+    { ...pool, poolAddress: owner(101), creator: owner(1) },
+    {
+      ...pool,
+      poolAddress: owner(102),
+      creator: owner(1),
+      createdTimestamp: 1000001,
+    },
+    { ...pool, chainId: 56, creator: owner(1) },
+  ]);
+  const rows = [
+    swap({
+      traderAddress: owner(1),
+      txHash: "0xa",
+      timestamp: 1000,
+      volumeUsd: 500,
+    }),
+    swap({
+      traderAddress: owner(1),
+      txHash: "0xb",
+      logIndex: 0,
+      volumeUsd: 200,
+    }),
+    swap({
+      traderAddress: owner(1),
+      txHash: "0xb",
+      logIndex: 1,
+      volumeUsd: 300,
+    }),
+    swap({
+      traderAddress: owner(2),
+      txHash: "0xc",
+      timestamp: 990000,
+      volumeUsd: 1000,
+    }),
+    ...Array.from({ length: 98 }, (_, i) =>
+      swap({
+        traderAddress: owner(i + 3),
+        txHash: "0x" + (i + 10),
+        volumeUsd: 1,
+      }),
+    ),
+  ];
+  savePage(db, rows, 1, 5, 1000000);
+  const s = sqlAnalytics(db, 0, 1000000, 1),
+    top = s.cohorts[0];
+  assert.equal(top.wallets, 2);
+  assert.equal(top.cutoffUsd, 1000);
+  assert.equal(top.totalVolumeUsd, 2000);
+  assert.equal(top.volume24hUsd, 1500);
+  assert.equal(top.medianVolumeUsd, 1000);
+  assert.equal(top.medianVolume24hUsd, 750);
+  assert.equal(top.medianTransactions, 1.5);
+  assert.equal(top.medianActiveDays, 1.5);
+  assert.equal(top.medianPoolsCreated, 1);
+  assert.equal(top.creatorCoverageComplete, true);
+  assert.equal(s.cohorts[1].wallets, 100); // Ties at the Top 5% boundary are retained.
+  savePools(db, [pool]); // Unknown creator metadata must not become a zero-count estimate.
+  assert.equal(
+    sqlAnalytics(db, 0, 1000000, 1).cohorts[0].medianPoolsCreated,
+    null,
+  );
+  db.close();
+});
 test("archived snapshot decompresses exactly and its checkpoint checksum matches", () => {
   const db = openDb(":memory:");
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "metric-snapshot-"));

@@ -82,6 +82,8 @@ Do not use a Vercel Function's local filesystem as a durable SQLite database. If
 
 ## Liquidity providers
 
+The **Top cohorts** comparison combines trading and LP metrics for the same Top 1% / 5% / 10% lifetime-volume-ranked trader addresses. It includes volume totals and medians, last-24h volume, unique swap transactions, UTC active days, pool creations and LP participation/deposits. Cohorts are nested and include ties. Medians describe cohort members; only the volume cutoff determines membership. LP medians across all traders include zero for known non-LPs, while LP-only medians state their subset. Unknown creator metadata or LP prices remain unavailable. The network filter applies; the leaderboard period does not redefine these lifetime groups.
+
 The dashboard includes a separate active-LP leaderboard, Top 1% / 5% / 10% capital thresholds, cumulative deposits and withdrawals, and LP participation inside the lifetime top-trader volume cohorts.
 
 ```sh

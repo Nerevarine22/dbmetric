@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Wallet } from "../core";
 import { LiquiditySection, type LPScope } from "./liquidity";
+import { CohortSection } from "./cohorts";
+import type { TraderCohort } from "../cohorts";
 type Stats = {
   wallets: Wallet[];
   listedWallets?: number;
@@ -20,6 +22,7 @@ type Stats = {
   medianVolumeUsd: number | null;
   windowComplete: boolean;
   daily: { day: number; wallets: number; volumeUsd: number }[];
+  cohorts?: TraderCohort[];
 };
 type Scope = {
   until: number;
@@ -216,6 +219,7 @@ export default function Page() {
             Traders
           </a>
           <a href="#analysis">Volume analysis</a>
+          <a href="#cohorts">Top cohorts</a>
           <a href="#liquidity">Liquidity</a>
           <a href="#method">Methodology</a>
         </nav>
@@ -616,6 +620,12 @@ export default function Page() {
             </div>
           </div>
         </section>
+        <CohortSection
+          cohorts={all?.cohorts}
+          liquidity={liquidity}
+          complete={scope?.allTimeComplete ?? false}
+          asOf={scope?.until}
+        />
         <LiquiditySection data={liquidity} chains={report?.chains ?? []} />
         <section className="method" id="method">
           <div>

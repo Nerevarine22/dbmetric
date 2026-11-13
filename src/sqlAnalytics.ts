@@ -1,5 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 import { ROUTERS, type Wallet } from "./core";
+import type { TraderCohort } from "./cohorts";
 export function sqlAnalytics(
   db: DatabaseSync,
   since: number,
@@ -17,6 +18,7 @@ export function sqlAnalytics(
   db.prepare(
     `CREATE TEMP TABLE metric_profiles AS SELECT trader address,
     SUM(COALESCE(volume_usd,0)) volumeUsd,COUNT(*) swaps,
+    SUM(CASE WHEN timestamp>=${until - 86400} THEN COALESCE(volume_usd,0) ELSE 0 END) volume24hUsd,
     COUNT(DISTINCT CAST(chain_id AS TEXT)||':'||tx_hash) transactions,
     COUNT(volume_usd) pricedSwaps,AVG(volume_usd) avgSwapUsd,
     GROUP_CONCAT(DISTINCT chain_id) chains,
@@ -29,6 +31,23 @@ export function sqlAnalytics(
   ).run(...params);
   db.exec(
     "CREATE INDEX temp.metric_profiles_volume ON metric_profiles(volumeUsd DESC,address)",
+  );
+  // Creator counts come from the same canonical registry, restricted to the scope cutoff.
+  db.exec("DROP TABLE IF EXISTS temp.metric_creators");
+  const creatorWhere = `CAST(json_extract(metadata,'$.createdTimestamp') AS INTEGER)<=?${chainId ? " AND chain_id=?" : ""}`;
+  const creatorParams = chainId ? [until, chainId] : [until];
+  const missingCreators = Number(
+    db
+      .prepare(
+        `SELECT COUNT(*) n FROM pools WHERE ${creatorWhere} AND (json_extract(metadata,'$.creator') IS NULL OR length(json_extract(metadata,'$.creator'))<>42)`,
+      )
+      .get(...creatorParams)!.n,
+  );
+  db.prepare(
+    `CREATE TEMP TABLE metric_creators AS SELECT lower(json_extract(metadata,'$.creator')) address,COUNT(*) n FROM pools WHERE ${creatorWhere} GROUP BY lower(json_extract(metadata,'$.creator'))`,
+  ).run(...creatorParams);
+  db.exec(
+    "CREATE INDEX temp.metric_creators_address ON metric_creators(address);ALTER TABLE temp.metric_profiles ADD COLUMN poolsCreated INTEGER; UPDATE metric_profiles SET poolsCreated=COALESCE((SELECT n FROM metric_creators WHERE metric_creators.address=metric_profiles.address),0);DROP TABLE temp.metric_creators",
   );
   const summary = db
     .prepare(
@@ -139,7 +158,7 @@ export function sqlAnalytics(
     `Aggregated ${summary.totalWallets} wallets in ${((Date.now() - started) / 1000).toFixed(1)}s`,
   );
   const { positiveWallets, ...metrics } = summary;
-  const cohorts = [1, 5, 10].map((percent) => {
+  const cohorts: TraderCohort[] = [1, 5, 10].map((percent) => {
     const size = Math.min(
       Math.ceil((summary.totalWallets * percent) / 100),
       summary.positiveWallets,
@@ -155,13 +174,35 @@ export function sqlAnalytics(
       : null;
     const row =
       cutoff === null
-        ? { n: 0 }
+        ? { n: 0, volume: 0, daily: 0 }
         : db
             .prepare(
-              "SELECT COUNT(*) n FROM metric_profiles WHERE volumeUsd>=? AND volumeUsd>0",
+              "SELECT COUNT(*) n,COALESCE(SUM(volumeUsd),0) volume,COALESCE(SUM(volume24hUsd),0) daily FROM metric_profiles WHERE volumeUsd>=? AND volumeUsd>0",
             )
             .get(cutoff)!;
-    return { percent, cutoffUsd: cutoff, wallets: Number(row.n) };
+    const median = (column: string) => {
+      const count = Number(row.n);
+      if (!count || cutoff === null) return null;
+      const middle = db
+        .prepare(
+          `SELECT ${column} value FROM metric_profiles WHERE volumeUsd>=? AND volumeUsd>0 ORDER BY ${column} LIMIT ? OFFSET ?`,
+        )
+        .all(cutoff, count % 2 ? 1 : 2, Math.floor((count - 1) / 2));
+      return middle.reduce((n, r) => n + Number(r.value), 0) / middle.length;
+    };
+    return {
+      percent,
+      cutoffUsd: cutoff,
+      wallets: Number(row.n),
+      totalVolumeUsd: Number(row.volume),
+      volume24hUsd: Number(row.daily),
+      medianVolumeUsd: median("volumeUsd"),
+      medianVolume24hUsd: median("volume24hUsd"),
+      medianTransactions: median("transactions"),
+      medianActiveDays: median("activeDays"),
+      medianPoolsCreated: missingCreators ? null : median("poolsCreated"),
+      creatorCoverageComplete: missingCreators === 0,
+    };
   });
   db.exec("DROP TABLE temp.metric_profiles");
   return {

@@ -162,6 +162,78 @@ export function exportReport(db: DatabaseSync) {
   const lp = liquidity.scopes[0] as import("./app/liquidity").LPScope;
   lines.push(
     "",
+    "## Combined top-trader cohorts",
+    "",
+    "All columns describe the same lifetime-volume-ranked addresses. Top 1% is nested in Top 5% and Top 10%; ties are included. Medians are group descriptions, not additional entry requirements. LP balances use the separate disclosed chain cutoffs.",
+    "",
+    "| Metric | Top 1% | Top 5% | Top 10% |",
+    "| --- | ---: | ---: | ---: |",
+  );
+  const cohorts = globalScope.windows.all.cohorts;
+  const combinedRows: [string, (c: (typeof cohorts)[number]) => string][] = [
+    ["Wallets", (c) => count(c.wallets)],
+    ["Trading volume entry cutoff ≈", (c) => usd(c.cutoffUsd)],
+    ["Lifetime volume total ≈", (c) => usd(c.totalVolumeUsd)],
+    ["Volume in last 24h total ≈", (c) => usd(c.volume24hUsd)],
+    ["Lifetime volume median ≈", (c) => usd(c.medianVolumeUsd)],
+    ["Volume in last 24h median ≈", (c) => usd(c.medianVolume24hUsd)],
+    [
+      "Swap transactions median",
+      (c) => String(c.medianTransactions ?? "Unavailable"),
+    ],
+    [
+      "Active UTC days median",
+      (c) => String(c.medianActiveDays ?? "Unavailable"),
+    ],
+    [
+      "Pools created median",
+      (c) => String(c.medianPoolsCreated ?? "Unavailable"),
+    ],
+    [
+      "Active LPs",
+      (c) =>
+        String(
+          lp.traderCohorts.find((g) => g.percent === c.percent)?.activeLPs ??
+            "Unavailable",
+        ),
+    ],
+    [
+      "Active liquidity median, all traders ≈",
+      (c) =>
+        usd(
+          lp.traderCohorts.find((g) => g.percent === c.percent)
+            ?.medianActiveUsdAcrossAllTraders ?? null,
+        ),
+    ],
+    [
+      "Lifetime deposits median, all traders ≈",
+      (c) =>
+        usd(
+          lp.traderCohorts.find((g) => g.percent === c.percent)
+            ?.medianLifetimeDepositsUsdAcrossAllTraders ?? null,
+        ),
+    ],
+    [
+      "Active liquidity median, active LPs only ≈",
+      (c) =>
+        usd(
+          lp.traderCohorts.find((g) => g.percent === c.percent)
+            ?.medianActiveUsdAmongValuedLPs ?? null,
+        ),
+    ],
+    [
+      "Lifetime deposits median, historical LPs only ≈",
+      (c) =>
+        usd(
+          lp.traderCohorts.find((g) => g.percent === c.percent)
+            ?.medianLifetimeDepositsUsdAmongPricedLPs ?? null,
+        ),
+    ],
+  ];
+  for (const [label, value] of combinedRows)
+    lines.push(`| ${label} | ${cohorts.map(value).join(" | ")} |`);
+  lines.push(
+    "",
     "## Liquidity providers",
     "",
     `Full LP history: ${lp.historyComplete ? "complete" : "partial"}. ${count(lp.totalLPWallets)} historical owners; ${count(lp.activeLPWallets)} owners with open shares; ${count(lp.valuedActiveLPWallets)} positive, fully valued active portfolios.`,
