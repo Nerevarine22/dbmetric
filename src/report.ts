@@ -106,5 +106,56 @@ export function exportReport(db: DatabaseSync) {
   fs.renameSync(tmp, "public/analytics.json");
   fs.writeFileSync("data/latest-report.json", JSON.stringify(report, null, 2));
   archiveSnapshot(db, report);
+  const globalScope = scopes[0] as {
+    allTimeComplete: boolean;
+    windows: Record<string, ReturnType<typeof sqlAnalytics>>;
+  };
+  const usd = (v: number | null) =>
+    v == null
+      ? "Unavailable"
+      : new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 0,
+        }).format(v);
+  const count = (v: number) => new Intl.NumberFormat("en-US").format(v);
+  const lines = [
+    "# Metric trader analysis",
+    "",
+    `Indexed cutoff: ${new Date(until * 1000).toISOString()}. Networks: Ethereum, BNB Chain, Robinhood.`,
+    `All-time registry coverage: ${globalScope.allTimeComplete ? "complete" : "partial"}.`,
+    "",
+    "| Window | Traders | Swaps | Estimated volume | Top 1% share | Top 10 share |",
+    "| --- | ---: | ---: | ---: | ---: | ---: |",
+  ];
+  for (const [key, s] of Object.entries(globalScope.windows))
+    lines.push(
+      `| ${key} | ${count(s.totalWallets)} | ${count(s.swapCount)} | ${usd(s.totalVolumeUsd)} | ${s.top1SharePct.toFixed(2)}% | ${s.top10SharePct.toFixed(2)}% |`,
+    );
+  const s = globalScope.windows["24h"];
+  lines.push(
+    "",
+    "## Top addresses over 24 hours",
+    "",
+    "| Rank | Address | Estimated volume | Swaps | Transactions | Direct router | Favorite pool |",
+    "| ---: | --- | ---: | ---: | ---: | ---: | --- |",
+  );
+  for (const w of s.wallets.slice(0, 10)) {
+    const explorer = CHAINS.find((c) => c.id === w.chains[0])?.explorer;
+    lines.push(
+      `| ${w.rank} | [${w.address}](${explorer}/address/${w.address}) | ${usd(w.volumeUsd)} | ${count(w.swaps)} | ${count(w.transactions)} | ${w.directRouterPct.toFixed(1)}% | ${w.favoritePool.replaceAll("|", "/")} |`,
+    );
+  }
+  lines.push(
+    "",
+    "## Interpretation",
+    "",
+    `The top-volume cohort contains ${count(s.top1Count)} addresses and accounts for ${s.top1SharePct.toFixed(2)}% of estimated 24-hour pool turnover. Its entry cutoff is ${usd(s.cutoffUsd)}, compared with median wallet volume of ${usd(s.medianVolumeUsd)}.`,
+    `Of ${count(s.swapCount)} swaps, ${count(s.pricedSwaps)} have a USD estimate; ${count(s.spotEstimatedSwaps)} use current metadata prices rather than a stable-unit estimate.`,
+    `Swaps and transaction counts are intentionally separate: multi-pool routes can inflate swap counts and sum turnover across several pools in one transaction. High volume alone does not establish profitability or identify an individual user.`,
+    "",
+    "This analysis covers transaction senders in registered canonical-factory pools. It does not measure LP users, LP TVL, profits or wash-trading-adjusted end-user notional. USD values are estimates, not historical execution prices.",
+  );
+  fs.writeFileSync("ANALYSIS.md", lines.join("\n") + "\n");
   return report;
 }

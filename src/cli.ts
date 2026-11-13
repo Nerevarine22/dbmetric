@@ -8,7 +8,12 @@ import { indexChain } from "./indexer";
 import { exportReport } from "./report";
 import { CHAINS } from "./core";
 import { backupDatabase } from "./snapshots";
+import { acquireWriterLock } from "./lock";
+const releaseLock = acquireWriterLock();
 const db = openDb();
+db.prepare(
+  "UPDATE runs SET status='interrupted',completed_at=? WHERE status='running'",
+).run(Math.floor(Date.now() / 1000));
 if (process.argv.includes("--backup")) {
   console.log("Consistent SQLite backup:", await backupDatabase(db));
   db.close();
@@ -67,4 +72,5 @@ try {
   throw e;
 } finally {
   db.close();
+  releaseLock();
 }

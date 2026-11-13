@@ -56,7 +56,10 @@ export async function queryHyperSync(
       await new Promise((resolve) => setTimeout(resolve, delay));
       continue;
     }
-    if (!r.ok) throw new Error(`HyperSync ${chainId}: HTTP ${r.status}`);
+    if (!r.ok) {
+      onRequest?.(r.status, 0);
+      throw new Error(`HyperSync ${chainId}: HTTP ${r.status}`);
+    }
     const body = await r.text();
     onRequest?.(r.status, Buffer.byteLength(body));
     const j = JSON.parse(body);

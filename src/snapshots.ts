@@ -47,7 +47,7 @@ export function archiveSnapshot(
     JSON.stringify(checkpoint, null, 2),
   );
   atomic(
-    path.join(directory, "checkpoints", `${id}.json`),
+    path.join(directory, "checkpoints", `${id}-${checksum.slice(0, 8)}.json`),
     JSON.stringify(checkpoint),
   );
   return { id, file, sha256: checksum };

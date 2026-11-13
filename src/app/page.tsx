@@ -415,7 +415,7 @@ export default function Page() {
             </div>
             <div
               className="volume-chart"
-              role="img"
+              role="group"
               aria-label="Volume comparison of the ten largest traders"
             >
               {(stats?.wallets.slice(0, 10) ?? []).map((w, i) => (

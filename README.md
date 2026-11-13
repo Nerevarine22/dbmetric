@@ -27,7 +27,7 @@ npm run sync:watch -- --minutes=60
 npm run backup                  # Consistent SQLite backup using the SQLite online backup API
 ```
 
-The default first scan covers one day. Subsequent scans reuse the database and request blocks after the last committed cursor, plus a short finalized overlap. Repeated pages replace the same `(chain_id, tx_hash, log_index)` rows. A page and its cursor commit atomically; interruptions resume from the last committed page. The watcher runs scans sequentially. Use one writer per data directory; do not run manual scans alongside the watcher.
+The default first scan covers one day. Subsequent scans reuse the database and request blocks after the last committed cursor, plus a short finalized overlap. Repeated pages replace the same `(chain_id, tx_hash, log_index)` rows. A page and its cursor commit atomically; interruptions resume from the last committed page. The watcher runs scans sequentially. A PID lock prevents simultaneous CLI scans, exports and backups; an abandoned lock is recovered after its process exits. Use one writer per data directory.
 
 New pools trigger a rewind to their creation block if it precedes the cursor. Metadata is paginated with `minTvlFiat=0` and filtered by the canonical factory. Previously registered pools remain in the local registry when a later API response omits them.
 

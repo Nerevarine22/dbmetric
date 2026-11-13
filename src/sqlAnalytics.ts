@@ -12,17 +12,14 @@ export function sqlAnalytics(
   const routerSql = [...ROUTERS].map((a) => `'${a}'`).join(",");
   const rows = db
     .prepare(
-      `WITH filtered AS MATERIALIZED (SELECT trader,chain_id,tx_hash,pool_address,volume_usd,timestamp,sender_router FROM swaps WHERE ${where}),
-    pool_volume AS (SELECT trader,chain_id,pool_address,SUM(COALESCE(volume_usd,0)) v FROM filtered GROUP BY trader,chain_id,pool_address),
-    favorite AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY trader ORDER BY v DESC,pool_address) rn FROM pool_volume)
-    SELECT s.trader address,SUM(COALESCE(s.volume_usd,0)) volumeUsd,COUNT(*) swaps,
+      `SELECT s.trader address,SUM(COALESCE(s.volume_usd,0)) volumeUsd,COUNT(*) swaps,
     COUNT(DISTINCT CAST(s.chain_id AS TEXT)||':'||s.tx_hash) transactions,COUNT(s.volume_usd) pricedSwaps,
     AVG(s.volume_usd) avgSwapUsd,GROUP_CONCAT(DISTINCT s.chain_id) chains,
     COUNT(DISTINCT CAST(s.chain_id AS TEXT)||':'||s.pool_address) pools,MIN(s.timestamp) firstSeen,MAX(s.timestamp) lastActive,
     COUNT(DISTINCT CAST(s.timestamp/86400 AS INTEGER)) activeDays,
     100.0*SUM(CASE WHEN s.sender_router IN (${routerSql}) THEN 1 ELSE 0 END)/COUNT(*) directRouterPct,
-    json_extract(p.metadata,'$.pair') favoritePool
-    FROM filtered s LEFT JOIN favorite f ON f.trader=s.trader AND f.rn=1 LEFT JOIN pools p ON p.chain_id=f.chain_id AND p.address=f.pool_address
+    '—' favoritePool
+    FROM swaps s INDEXED BY swaps_analytics_cover WHERE ${where}
     GROUP BY s.trader ORDER BY volumeUsd DESC,address`,
     )
     .all(...params) as unknown as (Omit<Wallet, "chains"> & {
@@ -43,6 +40,33 @@ export function sqlAnalytics(
     };
   });
   const top = wallets.filter((w) => w.cohort === "Top 1%");
+  const listed = wallets.slice(0, 1000);
+  if (listed.length) {
+    const favoriteRows = db
+      .prepare(
+        `SELECT trader,chain_id,pool_address,SUM(COALESCE(volume_usd,0)) v FROM swaps INDEXED BY swaps_analytics_cover WHERE ${where} AND trader IN (${listed.map(() => "?").join(",")}) GROUP BY trader,chain_id,pool_address ORDER BY trader,v DESC,pool_address`,
+      )
+      .all(...params, ...listed.map((w) => w.address));
+    const poolNames = new Map(
+      db
+        .prepare(
+          "SELECT chain_id,address,json_extract(metadata,'$.pair') pair FROM pools",
+        )
+        .all()
+        .map((p) => [`${p.chain_id}:${p.address}`, String(p.pair)]),
+    );
+    const favorites = new Map<string, string>();
+    for (const row of favoriteRows) {
+      const address = String(row.trader);
+      if (!favorites.has(address))
+        favorites.set(
+          address,
+          poolNames.get(`${row.chain_id}:${row.pool_address}`) ?? "—",
+        );
+    }
+    for (const wallet of listed)
+      wallet.favoritePool = favorites.get(wallet.address) ?? "—";
+  }
   const sum = (rows: Wallet[]) => rows.reduce((n, w) => n + w.volumeUsd, 0);
   const counts = db
     .prepare(
@@ -60,7 +84,7 @@ export function sqlAnalytics(
     )
     .all(...params);
   return {
-    wallets: wallets.slice(0, 1000),
+    wallets: listed,
     listedWallets: Math.min(1000, wallets.length),
     totalWallets: wallets.length,
     active24h: wallets.filter((w) => w.lastActive >= until - 86400).length,
