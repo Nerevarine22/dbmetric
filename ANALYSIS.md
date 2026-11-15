@@ -1,33 +1,33 @@
 # Metric trader analysis
 
-Indexed cutoff: 2026-11-13T14:43:35.000Z. Networks: Ethereum, BNB Chain, Robinhood.
+Indexed cutoff: 2026-11-15T14:52:11.000Z. Networks: Ethereum, BNB Chain, Robinhood.
 All-time registry coverage: complete.
 
 | Window | Traders | Swaps | Estimated volume | Top 1% share | Top 10 share |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| 24h | 23,144 | 145,633 | $317,328,883 | 75.15% | 24.53% |
-| 7d | 84,790 | 739,366 | $1,554,853,963 | 84.25% | 16.39% |
-| all | 275,179 | 3,994,943 | $6,005,086,720 | 82.83% | 8.62% |
+| 24h | 18,413 | 132,697 | $501,447,645 | 76.51% | 27.93% |
+| 7d | 94,083 | 889,895 | $2,238,723,148 | 86.53% | 20.26% |
+| all | 289,498 | 4,276,798 | $6,911,378,931 | 84.14% | 10.27% |
 
 ## Top addresses over 24 hours
 
 | Rank | Address | Estimated volume | Swaps | Transactions | Direct router | Favorite pool |
 | ---: | --- | ---: | ---: | ---: | ---: | --- |
-| 1 | [0xb00b06073d459a5c0c9d6040b2a0e665642faced](https://bscscan.com/address/0xb00b06073d459a5c0c9d6040b2a0e665642faced) | $20,001,382 | 19 | 5 | 100.0% | USDC/USDT |
-| 2 | [0x1d042c727d3f0b228a7438378e531773d1d8e353](https://etherscan.io/address/0x1d042c727d3f0b228a7438378e531773d1d8e353) | $14,964,464 | 345 | 298 | 0.0% | USDC/USDT |
-| 3 | [0x5c3593481cba011737e36ded62f1797c9f6afce1](https://etherscan.io/address/0x5c3593481cba011737e36ded62f1797c9f6afce1) | $9,305,459 | 84 | 52 | 7.1% | USDC/USDT |
-| 4 | [0x95480d3f27658e73b2785d30beb0c847d78294c7](https://etherscan.io/address/0x95480d3f27658e73b2785d30beb0c847d78294c7) | $6,459,008 | 36 | 24 | 0.0% | USDC/USDT |
-| 5 | [0x927723690aab3380e7fa6b30d68cfe62ae029d95](https://etherscan.io/address/0x927723690aab3380e7fa6b30d68cfe62ae029d95) | $5,199,775 | 133 | 114 | 0.0% | USDC/USDT |
-| 6 | [0xce0917a9a155448d0697ea5b724c7cea94aa968d](https://bscscan.com/address/0xce0917a9a155448d0697ea5b724c7cea94aa968d) | $5,036,284 | 1,701 | 1,701 | 100.0% | USDC/USDT |
-| 7 | [0xfb4f294f514fe7d12b5c45370bbebf1070d2f314](https://etherscan.io/address/0xfb4f294f514fe7d12b5c45370bbebf1070d2f314) | $4,951,856 | 88 | 86 | 0.0% | USDC/USDT |
-| 8 | [0xa7842153fde380a864726d0e91f14f6ffab7d46c](https://etherscan.io/address/0xa7842153fde380a864726d0e91f14f6ffab7d46c) | $4,371,106 | 15 | 13 | 100.0% | USDC/USDT |
-| 9 | [0x17701ea4718c8228b26912d6dd81a64341a2d2b9](https://etherscan.io/address/0x17701ea4718c8228b26912d6dd81a64341a2d2b9) | $4,044,885 | 60 | 60 | 0.0% | USDC/USDT |
-| 10 | [0xd8555ae1e7d6ecd0f9f08d6051b682b22e1ebecc](https://etherscan.io/address/0xd8555ae1e7d6ecd0f9f08d6051b682b22e1ebecc) | $3,503,682 | 93 | 86 | 0.0% | USDC/USDT |
+| 1 | [0xb00b06073d459a5c0c9d6040b2a0e665642faced](https://etherscan.io/address/0xb00b06073d459a5c0c9d6040b2a0e665642faced) | $31,999,808 | 8 | 1 | 100.0% | USDC/USDT |
+| 2 | [0x1d042c727d3f0b228a7438378e531773d1d8e353](https://etherscan.io/address/0x1d042c727d3f0b228a7438378e531773d1d8e353) | $29,794,962 | 330 | 260 | 0.0% | USDC/USDT |
+| 3 | [0x525abc3bbb2230909281cd8588aaf1072c8189c1](https://bscscan.com/address/0x525abc3bbb2230909281cd8588aaf1072c8189c1) | $10,561,714 | 135 | 135 | 100.0% | USDC/USDT |
+| 4 | [0x5ae90d59f100692f24b0f72acd99b7dc223046cc](https://bscscan.com/address/0x5ae90d59f100692f24b0f72acd99b7dc223046cc) | $10,411,682 | 169 | 169 | 100.0% | USDC/USDT |
+| 5 | [0x513baef24e881bbc4bff805b18b77f9628fda65f](https://bscscan.com/address/0x513baef24e881bbc4bff805b18b77f9628fda65f) | $10,269,996 | 143 | 143 | 100.0% | USDC/USDT |
+| 6 | [0xbe1ca6fba5aedabc5cb0f7b4aeac1407e7e4a432](https://bscscan.com/address/0xbe1ca6fba5aedabc5cb0f7b4aeac1407e7e4a432) | $9,928,679 | 151 | 151 | 100.0% | USDC/USDT |
+| 7 | [0x4f3688fc742e6aad7970120a20e4c537959a9e4e](https://bscscan.com/address/0x4f3688fc742e6aad7970120a20e4c537959a9e4e) | $9,926,736 | 150 | 150 | 100.0% | USDC/USDT |
+| 8 | [0xa5cf93558bf336e3a63432bbeed90326ab7f9c97](https://bscscan.com/address/0xa5cf93558bf336e3a63432bbeed90326ab7f9c97) | $9,277,485 | 144 | 144 | 100.0% | USDC/USDT |
+| 9 | [0xe2f72d68f9db3b6f4ed442318b0eee9ebad2684c](https://bscscan.com/address/0xe2f72d68f9db3b6f4ed442318b0eee9ebad2684c) | $9,127,977 | 151 | 151 | 100.0% | USDC/USDT |
+| 10 | [0xb583dbf908fef2437072391188b687e1c3dc4655](https://bscscan.com/address/0xb583dbf908fef2437072391188b687e1c3dc4655) | $8,760,084 | 129 | 129 | 100.0% | USDC/USDT |
 
 ## Interpretation
 
-The top-volume cohort contains 232 addresses and accounts for 75.15% of estimated 24-hour pool turnover. Its entry cutoff is $226,279, compared with median wallet volume of $100.
-Of 145,633 swaps, 145,633 have a USD estimate; 44,818 use current metadata prices rather than a stable-unit estimate.
+The top-volume cohort contains 185 addresses and accounts for 76.51% of estimated 24-hour pool turnover. Its entry cutoff is $428,123, compared with median wallet volume of $100.
+Of 132,697 swaps, 132,697 have a USD estimate; 44,145 use current metadata prices rather than a stable-unit estimate.
 Swaps and transaction counts are intentionally separate: multi-pool routes can inflate swap counts and sum turnover across several pools in one transaction. High volume alone does not establish profitability or identify an individual user.
 
 Trader analysis covers transaction senders in registered canonical-factory pools. LP analysis below separately identifies position owners. Neither measures profits or wash-trading-adjusted end-user notional. USD values are estimates, not historical execution prices.
@@ -38,32 +38,32 @@ All columns describe the same lifetime-volume-ranked addresses. Top 1% is nested
 
 | Metric | Top 1% | Top 5% | Top 10% |
 | --- | ---: | ---: | ---: |
-| Wallets | 2,752 | 13,759 | 27,518 |
-| Trading volume entry cutoff ≈ | $230,972 | $19,161 | $6,027 |
-| Lifetime volume total ≈ | $4,973,980,144 | $5,730,829,408 | $5,879,790,264 |
-| Volume in last 24h total ≈ | $276,153,342 | $306,770,090 | $311,965,976 |
-| Lifetime volume median ≈ | $449,941 | $62,917 | $19,161 |
+| Wallets | 2,895 | 14,475 | 28,950 |
+| Trading volume entry cutoff ≈ | $237,472 | $19,163 | $5,958 |
+| Lifetime volume total ≈ | $5,815,211,382 | $6,625,123,665 | $6,780,976,600 |
+| Volume in last 24h total ≈ | $462,890,393 | $493,753,005 | $497,305,415 |
+| Lifetime volume median ≈ | $483,185 | $63,293 | $19,162 |
 | Volume in last 24h median ≈ | $0 | $0 | $0 |
-| Swap transactions median | 156 | 18 | 10 |
+| Swap transactions median | 153 | 18 | 10 |
 | Active UTC days median | 14 | 4 | 2 |
 | Pools created median | 0 | 0 | 0 |
-| Active LPs | 50 | 315 | 609 |
+| Active LPs | 58 | 363 | 689 |
 | Active liquidity median, all traders ≈ | $0 | $0 | $0 |
 | Lifetime deposits median, all traders ≈ | $0 | $0 | $0 |
-| Active liquidity median, active LPs only ≈ | $5,231 | $1,954 | $1,276 |
-| Lifetime deposits median, historical LPs only ≈ | $18,985 | $11,633 | $5,616 |
+| Active liquidity median, active LPs only ≈ | $5,135 | $2,129 | $1,276 |
+| Lifetime deposits median, historical LPs only ≈ | $27,368 | $11,585 | $5,494 |
 
 ## Liquidity providers
 
-Full LP history: complete. 5,686 historical owners; 4,179 owners with open shares; 4,179 positive, fully valued active portfolios.
-Known active liquidity: $21,207,800. Cumulative deposits: $128,829,695; withdrawals: $107,443,431. Both token legs use synced spot quotes; repeated capital counts again in flows.
+Full LP history: complete. 5,999 historical owners; 4,416 owners with open shares; 4,416 positive, fully valued active portfolios.
+Known active liquidity: $22,997,974. Cumulative deposits: $166,163,979; withdrawals: $143,044,455. Both token legs use synced spot quotes; repeated capital counts again in flows.
 0 active portfolios excluded from ranking; 0 pools failed valuation checks. Thresholds apply to positive, fully valued portfolios.
 
 | LP cohort | Active capital entry cutoff | Wallets including ties | Share of valued capital |
 | --- | ---: | ---: | ---: |
-| Top 1% | $87,944 | 42 | 59.37% |
-| Top 5% | $11,009 | 209 | 82.86% |
-| Top 10% | $4,273 | 418 | 89.94% |
+| Top 1% | $93,032 | 45 | 59.51% |
+| Top 5% | $11,021 | 221 | 83.23% |
+| Top 10% | $4,370 | 442 | 90.14% |
 
 ### Deposits of top traders
 
@@ -71,13 +71,13 @@ Groups are selected by lifetime swap volume. Medians describe LP participants in
 
 | Trader group | Trader volume entry | Ever LP / traders | Active LPs | Median active LP | Median cumulative deposits |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Top 1% | $230,972 | 88 / 2,752 | 50 | $5,231 | $18,985 |
-| Top 5% | $19,161 | 503 / 13,759 | 315 | $1,954 | $11,633 |
-| Top 10% | $6,027 | 952 / 27,518 | 609 | $1,276 | $5,616 |
+| Top 1% | $237,472 | 96 / 2,895 | 58 | $5,135 | $27,368 |
+| Top 5% | $19,163 | 558 / 14,475 | 363 | $2,129 | $11,585 |
+| Top 10% | $5,958 | 1,047 / 28,950 | 689 | $1,276 | $5,494 |
 
 ### LP snapshot verification
 
-769 pools verified against pinned contract storage; 352 pools reconstructed from complete LP and BinSwapped events.
-- Ethereum: block 26406716, 2026-11-13T14:43:35.000Z, hash 0x1fed92023157c57c51d0c8490b1f8df18cfee2c49d3d532cf3af8f36ca992fe4.
-- BNB Chain: block 133371439, 2026-11-13T14:55:58.000Z, hash 0x0f11f085a0525a467a0983c286e346a8f37e2d5d794f431c724d606961d67b4f.
-- Robinhood: block 113440739, 2026-11-13T14:56:33.000Z, hash 0xa1acaeba0de03c477abd73948e36abb5b4f60394efc812671b00d245c36f3df1.
+795 pools verified against pinned contract storage; 368 pools reconstructed from complete LP and BinSwapped events.
+- Ethereum: block 26421120, 2026-11-15T14:52:11.000Z, hash 0xf2c82bd23709feb14c422b30002ca90221f60b4cb5432811778b6beec1f4650b.
+- BNB Chain: block 133756428, 2026-11-15T15:04:16.000Z, hash 0x75d207a233cc6c6673addb9162055204ecfe6adb194815acfb4d8479aa7d30b6.
+- Robinhood: block 115046664, 2026-11-15T15:04:51.000Z, hash 0x90d8ba85670f2bc3cf0e88b74d1e5b4212444d6a3c918245071236dad7e906d8.
