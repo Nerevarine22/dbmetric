@@ -59,7 +59,7 @@ Aggregate JSON is **not** a replacement for the raw database. Keep the database 
 
 ## Vercel
 
-Import `Nerevarine22/dbmetric`, repository root, Next.js preset. `vercel.json` sets build `npm run build`. Leave the Vercel Output Directory override disabled: the Next.js adapter reads build manifests from `.next` and handles `output: "export"` automatically. The local static export is still generated in `out`. Setting Vercel's Output Directory to `out` causes `NEXT_NO_ROUTES_MANIFEST`. No database or HyperSync token is needed on Vercel.
+Import `Nerevarine22/dbmetric`, repository root, Next.js preset. `vercel.json` sets build `npm run build` and explicitly sets Vercel's Output Directory to `.next`. This overrides any stale `out` value saved in the Vercel project settings. The Next.js adapter reads build manifests from `.next` and handles `output: "export"` automatically; the local static export is still generated in `out`. Do not change Vercel's Output Directory to `out`, which causes `NEXT_NO_ROUTES_MANIFEST`. No database or HyperSync token is needed on Vercel.
 
 The indexer runs on this computer or a server with a durable volume. Vercel serves the generated snapshot. Builds, page views and refreshes do not call HyperSync.
 
