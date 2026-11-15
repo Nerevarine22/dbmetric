@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "./style.css";
 export const metadata: Metadata = {
-  title: "Metric | Trader Intelligence",
+  title: "Metric | Wallet Rank Checker",
   description:
-    "Wallet activity, volume leaderboards and trading concentration across Metric Protocol.",
+    "Check any wallet's trading volume and liquidity provider rank on Metric. Explore exact ranks, Top 1% / 5% / 10% cohorts and wallet activity.",
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (

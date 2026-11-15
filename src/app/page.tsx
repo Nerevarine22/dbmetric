@@ -4,6 +4,8 @@ import type { Wallet } from "../core";
 import { LiquiditySection, type LPScope } from "./liquidity";
 import { CohortSection } from "./cohorts";
 import type { TraderCohort } from "../cohorts";
+import { WalletCheck } from "./wallet-check";
+import type { WalletLookupManifest } from "../wallets";
 type Stats = {
   wallets: Wallet[];
   listedWallets?: number;
@@ -37,6 +39,7 @@ type Report = {
   poolCount: number;
   scopes: Record<string, Scope>;
   liquidity?: { scopes: Record<string, LPScope> };
+  walletLookup?: WalletLookupManifest;
   chains: { id: number; name: string; explorer: string; pools: number }[];
   coverage: {
     chain_id: number;
@@ -215,13 +218,16 @@ export default function Page() {
           metric<span className="brand-tag">INTELLIGENCE</span>
         </a>
         <nav aria-label="Main navigation">
-          <a className="nav-active" href="#leaderboard">
+          <a className="nav-active" href="#check">
+            Check wallet
+          </a>
+          <a className="nav-secondary" href="#leaderboard">
             Traders
           </a>
-          <a href="#analysis">Volume analysis</a>
-          <a href="#cohorts">Top cohorts</a>
+          <a className="nav-secondary" href="#cohorts">
+            Top cohorts
+          </a>
           <a href="#liquidity">Liquidity</a>
-          <a href="#method">Methodology</a>
         </nav>
         <div className="source">
           <i /> Onchain data
@@ -235,14 +241,14 @@ export default function Page() {
         <div className="hero">
           <div>
             <h1>
-              Who moves
+              Where does your
               <br />
-              <em>Metric’s volume.</em>
+              <em>wallet rank?</em>
             </h1>
             <p>
-              From active wallets to the biggest traders.
+              Your volume. Your liquidity. Your place in Metric.
               <br />
-              Explore the addresses behind the protocol’s trading activity.
+              Enter an address to see its trading and LP rankings.
             </p>
           </div>
           <div className="hero-meta">
@@ -261,6 +267,20 @@ export default function Page() {
             {error}
           </div>
         )}
+        <WalletCheck
+          manifest={report?.walletLookup}
+          network={chain}
+          onNetworkChange={setChain}
+          chains={report?.chains ?? []}
+          trading={scope}
+          liquidity={liquidity}
+          loading={refreshing || !report}
+          example={
+            liquidity?.wallets.find((w) => w.address in liquidity.traderWallets)
+              ?.address ?? all?.wallets[0]?.address
+          }
+          onRefresh={load}
+        />
         <section className="controls">
           <div className="chain-filters" aria-label="Network filter">
             {[

@@ -1,11 +1,13 @@
 import type { DatabaseSync } from "node:sqlite";
 import { ROUTERS, type Wallet } from "./core";
 import type { TraderCohort } from "./cohorts";
+import type { TradeLookupSource } from "./wallets";
 export function sqlAnalytics(
   db: DatabaseSync,
   since: number,
   until: number,
   chainId = 0,
+  exportProfiles?: (rows: Iterable<TradeLookupSource>) => void,
 ) {
   const started = Date.now();
   console.log(`Aggregating ${chainId || "all chains"}: ${since}..${until}`);
@@ -204,6 +206,13 @@ export function sqlAnalytics(
       creatorCoverageComplete: missingCreators === 0,
     };
   });
+  exportProfiles?.(
+    db
+      .prepare(
+        `SELECT address,volumeUsd,swaps,transactions,activeDays,pools,${missingCreators ? "NULL" : "poolsCreated"} poolsCreated,firstSeen,lastActive,pricedSwaps,volume24hUsd,RANK() OVER(ORDER BY volumeUsd DESC) rank FROM metric_profiles ORDER BY address`,
+      )
+      .iterate() as unknown as Iterable<TradeLookupSource>,
+  );
   db.exec("DROP TABLE temp.metric_profiles");
   return {
     ...metrics,

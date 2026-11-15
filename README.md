@@ -4,6 +4,10 @@ An English-language Next.js dashboard for Metric Protocol traders and liquidity 
 
 ## Run locally
 
+The main feature is **Check any wallet**: paste an EVM address to see its exact volume and active-LP ranks, cohort, activity, deposits/withdrawals and gaps to Top 1% / 5% / 10%. Search covers every indexed wallet, including addresses outside the displayed top 1,000. Network selection applies to both rankings; All time / 24h / 7d changes only the wallet's trading rank. Profiles can be shared with `?wallet=0x...&network=0&walletPeriod=all`. No wallet connection or browser API token is required.
+
+Each export streams the full SQL-ranked trader population and all LP profiles into address-prefix JSON shards under `public/wallets/`. The browser fetches only the shard for the selected address/network. Content hashes provide immutable caching and snapshot matching; unchanged data retains the same file names. Wallet lookups make no RPC or Envio requests. Missing activity, withdrawn LPs, missing prices and partial coverage have distinct states. USD ranks use estimated priced volume and fully valued positive LP portfolios, with separate denominators. The UI shows the indexed dates, rather than claiming live balances.
+
 Requires Node.js 24+.
 
 ```sh
@@ -37,16 +41,17 @@ Requests are recorded in SQLite's `api_requests` with network, range, status and
 
 ## Saved data
 
-| Location                                    | Contents                                                                      | Git       |
-| ------------------------------------------- | ----------------------------------------------------------------------------- | --------- |
-| `data/metric.sqlite`                        | Swaps, LP events/positions, bin accumulators, registry, cursors and API usage | Ignored   |
-| `data/snapshots/<timestamp>-<hash>.json.gz` | Immutable compressed analytics snapshot                                       | Ignored   |
-| `data/checkpoints/<timestamp>.json`         | Cursors, registry, checksum and usage at export                               | Ignored   |
-| `data/checkpoints/latest.json`              | Latest checkpoint manifest                                                    | Ignored   |
-| `data/backups/*.sqlite`                     | Full consistent backups via `npm run backup`                                  | Ignored   |
-| `public/analytics.json`                     | Latest browser-ready snapshot                                                 | Committed |
-| `ANALYSIS.md`                               | Latest readable volume and concentration report                               | Committed |
-| `.env`                                      | Private credentials                                                           | Ignored   |
+| Location                                      | Contents                                                                      | Git       |
+| --------------------------------------------- | ----------------------------------------------------------------------------- | --------- |
+| `data/metric.sqlite`                          | Swaps, LP events/positions, bin accumulators, registry, cursors and API usage | Ignored   |
+| `data/snapshots/<timestamp>-<hash>.json.gz`   | Immutable compressed analytics snapshot                                       | Ignored   |
+| `data/checkpoints/<timestamp>.json`           | Cursors, registry, checksum and usage at export                               | Ignored   |
+| `data/checkpoints/latest.json`                | Latest checkpoint manifest                                                    | Ignored   |
+| `data/backups/*.sqlite`                       | Full consistent backups via `npm run backup`                                  | Ignored   |
+| `public/analytics.json`                       | Latest browser-ready snapshot                                                 | Committed |
+| `public/wallets/<chain>/<prefix>-<hash>.json` | Full-population wallet ranks and LP profiles, fetched by address prefix       | Committed |
+| `ANALYSIS.md`                                 | Latest readable volume and concentration report                               | Committed |
+| `.env`                                        | Private credentials                                                           | Ignored   |
 
 Aggregate JSON is **not** a replacement for the raw database. Keep the database or a SQLite backup to resume without refetching history. Copy backups off the scanner machine for disaster recovery. Archived snapshots have timestamps and checksums and are not automatically deleted.
 
@@ -60,12 +65,12 @@ To publish new data initially:
 
 ```sh
 npm run sync
-git add public/analytics.json ANALYSIS.md
+git add public/analytics.json public/wallets ANALYSIS.md
 git commit -m "Update Metric analytics snapshot"
 git push origin main
 ```
 
-Vercel's Git integration can deploy the commit. For updates without rebuilds, upload the snapshot to a persistent public object store with CORS and set `NEXT_PUBLIC_METRIC_SNAPSHOT_URL` at build time. That upload and scanner require a persistent worker. This repository does not provision one or enable a cloud schedule. The local watcher is available when explicitly started.
+Vercel's Git integration can deploy the commit. For updates without rebuilds, upload the snapshot **and its referenced wallet shards**, preserving their relative `wallets/` paths, to a persistent public object store with CORS and set `NEXT_PUBLIC_METRIC_SNAPSHOT_URL` at build time. Upload shards before replacing analytics.json. That upload and scanner require a persistent worker. This repository does not provision one or enable a cloud schedule. The local watcher is available when explicitly started.
 
 Do not use a Vercel Function's local filesystem as a durable SQLite database. If indexing later moves to Vercel, migrate writes and checkpoints to external persistent storage and use bounded scan jobs. [Vercel filesystem documentation](https://vercel.com/docs/functions/runtimes#file-system-support).
 

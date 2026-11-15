@@ -33,6 +33,7 @@ export function archiveSnapshot(
     snapshotFile: file,
     databaseFile: "data/metric.sqlite",
     coverage: report.coverage,
+    walletLookup: report.walletLookup,
     liquidityCoverage: (report.liquidity as { coverage?: unknown } | undefined)
       ?.coverage,
     liquidityValuationHeads: (

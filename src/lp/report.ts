@@ -120,6 +120,7 @@ export function buildLPReport(
   db: DatabaseSync,
   pools: Pool[],
   traderScopes: Record<string, unknown>,
+  exportWallets?: (chainId: number, wallets: LPWallet[]) => void,
 ) {
   const coverage = db
     .prepare("SELECT * FROM lp_coverage ORDER BY chain_id")
@@ -253,6 +254,7 @@ export function buildLPReport(
     });
     const byOwner = new Map(all.map((w) => [w.address, w]));
     const { ranked, thresholds } = lpCutoffs(all);
+    exportWallets?.(chainId, all);
     const expectedChains = chainId ? 1 : CHAINS.length;
     const historyComplete =
       coverage.filter((c) => !chainId || c.chain_id === chainId).length ===
