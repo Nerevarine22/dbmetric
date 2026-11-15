@@ -31,6 +31,8 @@ type Props = {
   loading: boolean;
   example?: string;
   onRefresh: () => void;
+  onAddressChange: (active: boolean) => void;
+  onOpenLiquidity: () => void;
 };
 const number = (v: number | null | undefined) =>
   v == null
@@ -65,6 +67,8 @@ export function WalletCheck({
   loading,
   example,
   onRefresh,
+  onAddressChange,
+  onOpenLiquidity,
 }: Props) {
   const [input, setInput] = useState(""),
     [address, setAddress] = useState(""),
@@ -79,6 +83,9 @@ export function WalletCheck({
   } | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const queryKey = `${manifest?.snapshotId}:${network}:${address}`;
+  useEffect(() => {
+    onAddressChange(!!address);
+  }, [address, onAddressChange]);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search),
       wallet = normalizeWallet(params.get("wallet") ?? "");
@@ -139,8 +146,25 @@ export function WalletCheck({
     return () => controller.abort();
   }, [address, manifest, network]);
   const current = lookup?.key === queryKey ? lookup : null;
+  function focusResult() {
+    heading.current?.focus({ preventScroll: true });
+    heading.current?.scrollIntoView({
+      block: "start",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  }
+  function showWallet(value: string) {
+    setInput(value);
+    setAddress(value);
+    setValidation("");
+    if (value === address) requestAnimationFrame(focusResult);
+  }
   useEffect(() => {
-    if (current && !current.pending) heading.current?.focus();
+    if (current && !current.pending) {
+      focusResult();
+    }
   }, [current]);
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -151,9 +175,7 @@ export function WalletCheck({
       );
       return;
     }
-    setValidation("");
-    setInput(normalized);
-    setAddress(normalized);
+    showWallet(normalized);
   }
   const entry = current?.entry,
     row = entry?.trading[period],
@@ -190,27 +212,50 @@ export function WalletCheck({
       aria-labelledby="wallet-check-label"
     >
       <form onSubmit={submit} noValidate>
-        <label id="wallet-check-label" htmlFor="wallet-address">
-          Check any wallet
-        </label>
+        <div className="check-form-heading">
+          <label id="wallet-check-label" htmlFor="wallet-address">
+            Find your wallet
+          </label>
+          <span className="read-only-label">
+            <i /> Read-only
+          </span>
+        </div>
         <div className="wallet-check-form">
-          <input
-            id="wallet-address"
-            name="wallet"
-            placeholder="Enter your wallet address · 0x…"
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              setValidation("");
-            }}
-            spellCheck={false}
-            autoComplete="off"
-            autoCapitalize="none"
-            aria-invalid={!!validation}
-            aria-describedby={
-              validation ? "wallet-address-error" : "wallet-check-help"
-            }
-          />
+          <div className="address-field">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <circle
+                cx="10.5"
+                cy="10.5"
+                r="6.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <path d="m16 16 4 4" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            <input
+              id="wallet-address"
+              name="wallet"
+              placeholder="Paste wallet address · 0x…"
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                setValidation("");
+              }}
+              spellCheck={false}
+              autoComplete="off"
+              autoCapitalize="none"
+              aria-invalid={!!validation}
+              aria-describedby={
+                validation ? "wallet-address-error" : "wallet-check-help"
+              }
+            />
+          </div>
           <select
             aria-label="Wallet network"
             value={network}
@@ -228,7 +273,13 @@ export function WalletCheck({
             type="submit"
             disabled={loading || !manifest}
           >
-            {loading ? "Loading snapshot…" : "Check wallet ↗"}
+            {loading ? (
+              "Loading…"
+            ) : (
+              <>
+                Check rank <span aria-hidden="true">↗</span>
+              </>
+            )}
           </button>
         </div>
         {validation && (
@@ -241,25 +292,21 @@ export function WalletCheck({
           </p>
         )}
         <div className="wallet-check-help" id="wallet-check-help">
-          <span>
-            Address only · No wallet connection needed · Snapshot data
-          </span>
+          <span>No connection. Just your public address.</span>
           {example && (
             <button
               type="button"
               onClick={() => {
-                setInput(example);
-                setAddress(example);
-                setValidation("");
+                showWallet(example);
               }}
             >
-              Try an indexed wallet →
+              Try an example <span aria-hidden="true">↗</span>
             </button>
           )}
         </div>
         {!loading && !manifest && (
           <p className="wallet-check-error">
-            Full wallet search is unavailable in this snapshot.{" "}
+            Wallet search is unavailable.{" "}
             <button type="button" onClick={onRefresh}>
               Refresh snapshot
             </button>
@@ -269,291 +316,372 @@ export function WalletCheck({
       {address && (
         <div className="wallet-result" aria-live="polite" aria-busy={pending}>
           <div className="wallet-result-heading">
-            <div>
-              <span className="eyebrow">
-                YOUR METRIC PROFILE ·{" "}
-                {network === "0"
-                  ? "ALL NETWORKS"
-                  : chains
-                      .find((c) => String(c.id) === network)
-                      ?.name.toUpperCase()}
+            <div className="profile-identity">
+              <span className="wallet-avatar" aria-hidden="true">
+                ◎
               </span>
-              <h2 ref={heading} tabIndex={-1}>
-                Your wallet, in context.
-              </h2>
-              <p className="checked-address">{address}</p>
+              <div>
+                <span className="eyebrow">WALLET PROFILE</span>
+                <h2
+                  ref={heading}
+                  tabIndex={-1}
+                  aria-label={`Wallet ${address}`}
+                >
+                  {address.slice(0, 6)}
+                  <span className="address-ellipsis">…</span>
+                  {address.slice(-4)}
+                </h2>
+                <span className="profile-network">
+                  {network === "0"
+                    ? "All networks"
+                    : chains.find((c) => String(c.id) === network)?.name}
+                </span>
+              </div>
             </div>
             <button
-              className="refresh"
+              className="share-profile"
+              aria-label="Copy profile link"
               type="button"
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(window.location.href);
                   setCopyStatus("Link copied");
                 } catch {
-                  setCopyStatus(
-                    "Copy the URL from your browser to share this profile.",
-                  );
+                  setCopyStatus("Copy the browser URL to share.");
                 }
               }}
             >
-              Copy profile link
+              {copyStatus === "Link copied" ? "Copied ✓" : "Share profile ↗"}
             </button>
           </div>
-          {copyStatus && (
+          {copyStatus && copyStatus !== "Link copied" && (
             <p className="wallet-check-help" role="status">
               {copyStatus}
             </p>
           )}
           {pending && (
-            <p className="wallet-check-status">Checking indexed activity…</p>
+            <div className="rank-loading" role="status">
+              <span>Finding your ranks…</span>
+              <div />
+              <div />
+            </div>
           )}
           {current?.error && (
             <p className="notice error" role="alert">
               {current.error}{" "}
               <button className="refresh" onClick={onRefresh}>
-                Refresh snapshot
+                Retry
               </button>
             </p>
           )}
           {current && !current.pending && !current.error && (
             <>
-              {!entry && (
-                <p className="wallet-check-status">
-                  No indexed swap or LP activity found for this address on{" "}
-                  {network === "0"
-                    ? "the covered networks"
-                    : chains.find((c) => String(c.id) === network)?.name}
-                  . This describes the published snapshot; activity after its
-                  cutoff is not included.
-                </p>
-              )}
-              <div className="wallet-rank-grid">
-                <article className="wallet-rank-card">
-                  <div className="wallet-rank-top">
-                    <span className="eyebrow">TRADING VOLUME</span>
-                    <div className="periods" aria-label="Wallet volume period">
-                      {(["all", "24h", "7d"] as const).map((p) => (
-                        <button
-                          key={p}
-                          type="button"
-                          aria-pressed={period === p}
-                          className={period === p ? "active" : ""}
-                          onClick={() => setPeriod(p)}
-                        >
-                          {p === "all" ? "All time" : p}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <strong className="wallet-rank-number">
-                    {!row && period !== "all"
-                      ? "No swaps in this window"
-                      : tradeTitle}
-                  </strong>
+              {!entry ? (
+                <div className="wallet-empty">
+                  <span aria-hidden="true">⌕</span>
+                  <h3>No activity in this snapshot.</h3>
                   <p>
-                    {trade?.rank
-                      ? `of ${number(population?.totalWallets)} indexed traders`
-                      : period === "all"
-                        ? "Based on indexed transaction senders"
-                        : "Activity is measured at the trading snapshot cutoff"}
+                    No indexed swaps or LP positions on{" "}
+                    {network === "0"
+                      ? "the covered networks"
+                      : chains.find((c) => String(c.id) === network)?.name}
+                    .
                   </p>
-                  {trade?.rank && (
-                    <div className="wallet-rank-badges">
-                      <span className="pill">
-                        {rankCohort(trade.rank, population?.totalWallets ?? 0)}
+                  <small>
+                    Activity after the snapshot date is not included.
+                  </small>
+                </div>
+              ) : (
+                <div className="wallet-rank-grid">
+                  <article
+                    className="wallet-rank-card trading-rank"
+                    key={`trade-${address}-${network}-${period}`}
+                  >
+                    <div className="wallet-rank-top">
+                      <span className="rank-category">
+                        <span className="category-index">01</span> Trading
+                        volume
                       </span>
-                      <span>
-                        {rankPosition(
-                          trade.rank,
-                          population?.totalWallets ?? 0,
-                        )}
-                      </span>
+                      <div
+                        className="periods"
+                        aria-label="Wallet volume period"
+                      >
+                        {(["all", "24h", "7d"] as const).map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            aria-pressed={period === p}
+                            className={period === p ? "active" : ""}
+                            onClick={() => setPeriod(p)}
+                          >
+                            {p === "all" ? "All time" : p}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                  {population && !population.windowComplete && (
-                    <p className="wallet-check-error">
-                      Partial indexed history. This rank covers the available
-                      interval.
-                    </p>
-                  )}
-                  <dl className="wallet-check-stats">
-                    <Stat
-                      label="Estimated swap volume"
-                      value={
-                        trade && trade.pricedSwaps === 0
-                          ? "Unpriced"
-                          : usd(trade?.volumeUsd ?? 0)
-                      }
-                    />
-                    <Stat
-                      label="Swap transactions"
-                      value={number(trade?.transactions ?? 0)}
-                    />
-                    <Stat
-                      label="Active days (UTC)"
-                      value={number(trade?.activeDays ?? 0)}
-                    />
-                    <Stat
-                      label="Pool swaps"
-                      value={number(trade?.swaps ?? 0)}
-                    />
-                    <Stat
-                      label="Pools traded"
-                      value={number(trade?.pools ?? 0)}
-                    />
-                    <Stat
-                      label="Pools created · lifetime"
-                      value={number(
-                        entry?.trading.all
-                          ? readTrade(entry.trading.all).poolsCreated
-                          : trade?.poolsCreated,
+                    <div className="rank-number-line">
+                      <strong
+                        className={`wallet-rank-number ${trade?.rank ? "" : "rank-empty-number"}`}
+                      >
+                        {!row && period !== "all"
+                          ? "No swaps in this period"
+                          : tradeTitle}
+                      </strong>
+                      {trade?.rank && (
+                        <span className="rank-tier">
+                          {rankCohort(
+                            trade.rank,
+                            population?.totalWallets ?? 0,
+                          )}
+                        </span>
                       )}
-                    />
-                  </dl>
-                  {trade && trade.pricedSwaps < trade.swaps && (
-                    <p className="wallet-rank-note">
-                      {number(trade.swaps - trade.pricedSwaps)} swaps lack a USD
-                      estimate. Rank uses priced volume.
-                    </p>
-                  )}
-                  {(!trade || trade.pricedSwaps > 0) && (
-                    <Gaps
-                      value={trade?.volumeUsd ?? 0}
-                      thresholds={population?.cohorts}
-                      unit="volume"
-                    />
-                  )}
-                </article>
-                <article className="wallet-rank-card">
-                  <div className="wallet-rank-top">
-                    <span className="eyebrow">ACTIVE LP LIQUIDITY</span>
-                    <span className="wallet-rank-note">Snapshot holdings</span>
-                  </div>
-                  <strong className="wallet-rank-number">{lpTitle}</strong>
-                  <p>
-                    {lpRank
-                      ? `of ${number(liquidity?.valuedActiveLPWallets)} USD-valued active LP wallets`
-                      : "Position owner from liquidity events"}
-                  </p>
-                  {lpRank && (
-                    <div className="wallet-rank-badges">
-                      <span className="pill">{lp?.cohort}</span>
-                      <span>
-                        {rankPosition(
-                          lpRank,
-                          liquidity?.valuedActiveLPWallets ?? 0,
-                        )}
-                      </span>
                     </div>
-                  )}
-                  {liquidity && !liquidity.rankingComplete && (
-                    <p className="wallet-check-error">
-                      LP coverage or pricing is incomplete. Available ranks
-                      describe the valued subset.
+                    <p className="rank-population">
+                      {trade?.rank ? (
+                        <>
+                          of {number(population?.totalWallets)} traders{" "}
+                          <span>
+                            ·{" "}
+                            {rankPosition(
+                              trade.rank,
+                              population?.totalWallets ?? 0,
+                            )}
+                          </span>
+                        </>
+                      ) : (
+                        "Ranked by estimated swap volume"
+                      )}
                     </p>
-                  )}
-                  <dl className="wallet-check-stats">
-                    <Stat
-                      label="Active LP value ≈"
-                      value={
-                        lp
+                    {population && !population.windowComplete && (
+                      <p className="wallet-check-error">
+                        Partial history · rank covers indexed data.
+                      </p>
+                    )}
+                    <div className="rank-capital">
+                      <span>
+                        {period === "all"
+                          ? "Total volume"
+                          : "Volume · " + period}{" "}
+                        ≈
+                      </span>
+                      <strong>
+                        {trade && trade.pricedSwaps === 0
+                          ? "Unpriced"
+                          : usd(trade?.volumeUsd ?? 0)}
+                      </strong>
+                    </div>
+                    <dl className="wallet-check-stats">
+                      <Stat
+                        label="Transactions"
+                        value={number(trade?.transactions ?? 0)}
+                      />
+                      <Stat
+                        label="Active days"
+                        value={number(trade?.activeDays ?? 0)}
+                      />
+                      <Stat
+                        label="Pools traded"
+                        value={number(trade?.pools ?? 0)}
+                      />
+                    </dl>
+                    <details className="wallet-extra">
+                      <summary>More activity</summary>
+                      <dl>
+                        <Stat
+                          label="Pool swaps"
+                          value={number(trade?.swaps ?? 0)}
+                        />
+                        <Stat
+                          label="Pools created · all time"
+                          value={number(
+                            entry.trading.all
+                              ? readTrade(entry.trading.all).poolsCreated
+                              : trade?.poolsCreated,
+                          )}
+                        />
+                      </dl>
+                      {trade && trade.pricedSwaps < trade.swaps && (
+                        <p>
+                          {number(trade.swaps - trade.pricedSwaps)} swaps have
+                          no USD estimate.
+                        </p>
+                      )}
+                    </details>
+                    {(!trade || trade.pricedSwaps > 0) && (
+                      <Gaps
+                        value={trade?.volumeUsd ?? 0}
+                        thresholds={population?.cohorts}
+                        unit="volume"
+                      />
+                    )}
+                  </article>
+                  <article
+                    className="wallet-rank-card lp-rank"
+                    key={`lp-${address}-${network}`}
+                  >
+                    <div className="wallet-rank-top">
+                      <span className="rank-category">
+                        <span className="category-index">02</span> LP liquidity
+                      </span>
+                      <span className="holding-tag">Active capital</span>
+                    </div>
+                    <div className="rank-number-line">
+                      <strong
+                        className={`wallet-rank-number ${lpRank ? "" : "rank-empty-number"}`}
+                      >
+                        {lpTitle}
+                      </strong>
+                      {lpRank && (
+                        <span className="rank-tier">{lp?.cohort}</span>
+                      )}
+                    </div>
+                    <p className="rank-population">
+                      {lpRank ? (
+                        <>
+                          of {number(liquidity?.valuedActiveLPWallets)}{" "}
+                          {liquidity?.rankingComplete
+                            ? "active LPs"
+                            : "valued LPs"}{" "}
+                          <span>
+                            ·{" "}
+                            {rankPosition(
+                              lpRank,
+                              liquidity?.valuedActiveLPWallets ?? 0,
+                            )}
+                          </span>
+                        </>
+                      ) : (
+                        "Ranked by liquidity currently in pools"
+                      )}
+                    </p>
+                    {liquidity && !liquidity.rankingComplete && (
+                      <p className="wallet-check-error">
+                        Partial valuation · rank covers priced portfolios.
+                      </p>
+                    )}
+                    <div className="rank-capital">
+                      <span>Active liquidity ≈</span>
+                      <strong>
+                        {lp
                           ? usd(lp.activeUsd)
                           : liquidity?.historyComplete
                             ? usd(0)
-                            : "Unavailable"
-                      }
-                    />
-                    <Stat
-                      label="Lifetime deposits ≈"
-                      value={
-                        lp
-                          ? usd(lp.lifetimeDepositsUsd)
-                          : liquidity?.historyComplete
-                            ? usd(0)
-                            : "Unavailable"
-                      }
-                    />
-                    <Stat
-                      label="Lifetime withdrawals ≈"
-                      value={
-                        lp
-                          ? usd(lp.lifetimeWithdrawalsUsd)
-                          : liquidity?.historyComplete
-                            ? usd(0)
-                            : "Unavailable"
-                      }
-                    />
-                    <Stat
-                      label="Open positions"
-                      value={
-                        lp
-                          ? number(lp.openPositions)
-                          : liquidity?.historyComplete
-                            ? "0"
-                            : "—"
-                      }
-                    />
-                    <Stat
-                      label="Active pools"
-                      value={
-                        lp
-                          ? number(lp.activePools)
-                          : liquidity?.historyComplete
-                            ? "0"
-                            : "—"
-                      }
-                    />
-                    <Stat
-                      label="LP transactions"
-                      value={
-                        lp
-                          ? number(lp.lpTransactions)
-                          : liquidity?.historyComplete
-                            ? "0"
-                            : "—"
-                      }
-                    />
-                  </dl>
-                  {liquidity?.historyComplete && lp?.activeUsd !== null && (
-                    <Gaps
-                      value={lp?.activeUsd ?? 0}
-                      thresholds={liquidity?.thresholds}
-                      unit="active liquidity"
-                    />
-                  )}
-                </article>
-              </div>
-              <p className="wallet-rank-note">
-                Trading snapshot:{" "}
-                {trading ? date(trading.until) + " Kyiv" : "unavailable"}. LP
-                snapshot:{" "}
-                {liquidity?.asOf
-                  ? date(liquidity.asOf) + " Kyiv"
-                  : "unavailable"}
-                ; <a href="#liquidity">individual chain cutoffs</a>. Cohorts
-                round up and include ties. Network selection applies to both
-                rankings; the volume period affects trading only.
-              </p>
-              <p className="wallet-rank-note">
-                USD values are estimates. Historical deposits use synced spot
-                quotes and can count repeated capital. Trader ranks identify
-                transaction senders; LP ranks identify position owners, which
-                can be strategy or custody contracts.
-              </p>
-              <div className="explorer-links">
-                {chains
-                  .filter((c) => network === "0" || String(c.id) === network)
-                  .map((c) => (
-                    <a
-                      key={c.id}
-                      href={`${c.explorer}/address/${address}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {c.name} explorer ↗
-                    </a>
-                  ))}
+                            : "Unavailable"}
+                      </strong>
+                    </div>
+                    <dl className="wallet-check-stats">
+                      <Stat
+                        label="Deposited ≈"
+                        value={
+                          lp
+                            ? usd(lp.lifetimeDepositsUsd)
+                            : liquidity?.historyComplete
+                              ? usd(0)
+                              : "—"
+                        }
+                      />
+                      <Stat
+                        label="Withdrawn ≈"
+                        value={
+                          lp
+                            ? usd(lp.lifetimeWithdrawalsUsd)
+                            : liquidity?.historyComplete
+                              ? usd(0)
+                              : "—"
+                        }
+                      />
+                      <Stat
+                        label="Positions"
+                        value={
+                          lp
+                            ? number(lp.openPositions)
+                            : liquidity?.historyComplete
+                              ? "0"
+                              : "—"
+                        }
+                      />
+                    </dl>
+                    <details className="wallet-extra">
+                      <summary>More activity</summary>
+                      <dl>
+                        <Stat
+                          label="Active pools"
+                          value={lp ? number(lp.activePools) : "—"}
+                        />
+                        <Stat
+                          label="LP transactions"
+                          value={lp ? number(lp.lpTransactions) : "—"}
+                        />
+                      </dl>
+                      <p>
+                        Deposits and withdrawals are cumulative, repriced at
+                        snapshot quotes.
+                      </p>
+                    </details>
+                    {liquidity?.historyComplete && lp?.activeUsd !== null && (
+                      <Gaps
+                        value={lp?.activeUsd ?? 0}
+                        thresholds={liquidity?.thresholds}
+                        unit="active liquidity"
+                      />
+                    )}
+                  </article>
+                </div>
+              )}
+              <div className="profile-bottom">
+                <span className="profile-snapshot">
+                  <i /> Snapshot ·{" "}
+                  {trading ? date(trading.until) + " Kyiv" : "Unavailable"}
+                </span>
+                <details className="rank-method">
+                  <summary>
+                    How rankings work{" "}
+                    <span className="disclosure-icon" aria-hidden="true" />
+                  </summary>
+                  <div>
+                    <p>
+                      Trading rank compares transaction senders in the selected
+                      period. LP rank compares fully USD-valued portfolios with
+                      positive active liquidity. Cohorts round up and include
+                      ties.
+                    </p>
+                    <p>
+                      Trading cutoff:{" "}
+                      {trading ? date(trading.until) + " Kyiv" : "unavailable"}.
+                      LP cutoff:{" "}
+                      {liquidity?.asOf
+                        ? date(liquidity.asOf) + " Kyiv"
+                        : "unavailable"}
+                      .{" "}
+                      <button onClick={onOpenLiquidity}>
+                        View chain cutoffs ↗
+                      </button>
+                    </p>
+                    <p>
+                      USD values are estimates. LP deposits use synced spot
+                      quotes and may count repeated capital. Active days use
+                      UTC. Positions can belong to strategy or custody
+                      contracts.
+                    </p>
+                    <p className="full-address">{address}</p>
+                    <div className="explorer-links">
+                      {chains
+                        .filter(
+                          (c) => network === "0" || String(c.id) === network,
+                        )
+                        .map((c) => (
+                          <a
+                            key={c.id}
+                            href={`${c.explorer}/address/${address}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {c.name} ↗
+                          </a>
+                        ))}
+                    </div>
+                  </div>
+                </details>
               </div>
             </>
           )}
@@ -581,19 +709,48 @@ function Gaps({
 }) {
   return (
     <div className="wallet-rank-gaps">
-      <span>Gap to cohort cutoff</span>
-      {thresholds?.map((t) => (
-        <div key={t.percent}>
-          <span>Top {t.percent}%</span>
-          <strong>
-            {t.cutoffUsd === null
-              ? "Unavailable"
-              : value >= t.cutoffUsd
-                ? "Reached"
-                : `${usd(Math.max(0, t.cutoffUsd - value))} in ${unit}`}
-          </strong>
-        </div>
-      ))}
+      <div className="gap-heading">
+        <span>Your next milestones</span>
+        <span>Amount to go</span>
+      </div>
+      {thresholds?.map((t) => {
+        const reached = t.cutoffUsd !== null && value >= t.cutoffUsd,
+          progress =
+            t.cutoffUsd && t.cutoffUsd > 0
+              ? Math.min(100, Math.max(0, (value / t.cutoffUsd) * 100))
+              : 0;
+        return (
+          <div
+            className={`gap-item ${reached ? "is-reached" : ""}`}
+            key={t.percent}
+          >
+            <div className="gap-label">
+              <span>Top {t.percent}%</span>
+              <strong>
+                {t.cutoffUsd === null ? (
+                  "Unavailable"
+                ) : reached ? (
+                  <>
+                    <span aria-hidden="true">✓ </span>Reached
+                  </>
+                ) : (
+                  usd(Math.max(0, t.cutoffUsd - value))
+                )}
+              </strong>
+            </div>
+            <div
+              className="gap-track"
+              role="progressbar"
+              aria-label={`Progress to Top ${t.percent}% by ${unit}`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress)}
+            >
+              <i style={{ width: progress + "%" }} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -113,20 +113,16 @@ export function CohortSection({
     >
       <div className="table-heading">
         <div>
-          <span className="eyebrow">
-            TOP 1% / 5% / 10% · ONE TRADER POPULATION
-          </span>
-          <h2 id="cohorts-title">Top traders, all metrics together.</h2>
+          <span className="eyebrow">LIFETIME COHORTS</span>
+          <h2 id="cohorts-title">Top trader benchmarks.</h2>
         </div>
         <span className="pill">
           BY {complete ? "LIFETIME" : "INDEXED"} SWAP VOLUME
         </span>
       </div>
       <p className="listing-note">
-        Each column follows the same addresses across trading and liquidity. The
-        network filter applies; leaderboard time windows do not change these
-        lifetime groups. Top 1% is included in Top 5%, which is included in Top
-        10%; cutoff ties are included.
+        The same wallets across trading and liquidity. Groups are nested and
+        ranked by lifetime volume.
       </p>
       {!complete && (
         <p className="notice" role="status">
@@ -181,24 +177,26 @@ export function CohortSection({
           </tbody>
         </table>
       </div>
-      <p className="listing-note">
-        Medians summarize the group; only the volume entry threshold determines
-        membership. All-wallet LP medians include zero for addresses with no LP
-        history. LP-only medians use the stated subset and exclude missing
-        prices. Transactions count unique swap transactions; pool creators come
-        from canonical metadata.
-      </p>
-      <p className="listing-note">
-        24h volume is measured at{" "}
-        {asOf
-          ? new Date(asOf * 1000).toLocaleString("en-GB", {
-              timeZone: "Europe/Kyiv",
-            })
-          : "the trading snapshot cutoff"}{" "}
-        Kyiv. LP balances use the chain blocks disclosed below. Historical
-        deposits are repriced at synced spot quotes; repeated capital is
-        counted.
-      </p>
+      <details className="cohort-notes">
+        <summary>How to read these benchmarks</summary>
+        <p className="listing-note">
+          Medians summarize the group; only the volume entry threshold
+          determines membership. All-wallet LP medians include zero for
+          addresses with no LP history. LP-only medians use the stated subset
+          and exclude missing prices. Transactions count unique swap
+          transactions; pool creators come from canonical metadata.
+        </p>
+        <p className="listing-note">
+          24h volume is measured at{" "}
+          {asOf
+            ? new Date(asOf * 1000).toLocaleString("en-GB", {
+                timeZone: "Europe/Kyiv",
+              })
+            : "the trading snapshot cutoff"}{" "}
+          Kyiv. LP balances use per-chain snapshot blocks. Historical deposits
+          are repriced at synced spot quotes; repeated capital is counted.
+        </p>
+      </details>
     </section>
   );
 }

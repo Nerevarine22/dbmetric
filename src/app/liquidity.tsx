@@ -123,12 +123,9 @@ export function LiquiditySection({
     <section className="lp-section" id="liquidity">
       <div className="lp-heading">
         <div>
-          <span className="eyebrow">04 / LIQUIDITY PROVIDERS</span>
-          <h2>Capital still in the pools.</h2>
-          <p>
-            Active holdings at the LP snapshot cutoff. The network filter
-            applies; trader time windows do not change LP holdings.
-          </p>
+          <span className="eyebrow">LP RANKINGS</span>
+          <h2>Liquidity providers.</h2>
+          <p>Ranked by active capital in pools.</p>
         </div>
         <span className="subtle">
           {data.asOf ? when(data.asOf) + " · Kyiv" : "Awaiting valuation"}
@@ -182,13 +179,15 @@ export function LiquiditySection({
         ))}
       </div>
       <p className="lp-explainer">
-        LP cohorts rank fully USD-valued portfolios with positive active
-        liquidity. Historical adds and removes are separate flow estimates and
-        do not determine active-capital rank. Each network has its own disclosed
-        block cutoff.
+        Entry thresholds among valued, active LP wallets.
       </p>
       <details className="lp-explainer">
-        <summary>Snapshot blocks and verification</summary>
+        <summary>About LP rankings &amp; snapshot blocks</summary>
+        <p>
+          Ranks use positive, fully USD-valued active liquidity. Deposits and
+          withdrawals are cumulative flows at synced quotes; they do not
+          determine rank. Each network uses its disclosed block cutoff.
+        </p>
         <p>
           {number(data.quality.storageVerifiedPools)} pools checked against
           contract storage · {number(data.quality.eventReplayedPools)} pools
@@ -230,9 +229,8 @@ export function LiquiditySection({
           </label>
         </div>
         <p className="listing-note">
-          Top {number(data.wallets.length)} valued portfolios. Addresses
-          identify position owners; custodians and strategy contracts may
-          represent other users.
+          Top {number(data.wallets.length)} valued portfolios ·{" "}
+          {number(data.totalLPWallets)} historical LP owners.
         </p>
         <div className="table-scroll">
           <table>

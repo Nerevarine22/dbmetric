@@ -6,6 +6,7 @@ import { CohortSection } from "./cohorts";
 import type { TraderCohort } from "../cohorts";
 import { WalletCheck } from "./wallet-check";
 import type { WalletLookupManifest } from "../wallets";
+import { MetricOrbit } from "./metric-orbit";
 type Stats = {
   wallets: Wallet[];
   listedWallets?: number;
@@ -87,6 +88,37 @@ export default function Page() {
     [page, setPage] = useState(1),
     [selected, setSelected] = useState<Wallet | null>(null),
     [refreshing, setRefreshing] = useState(false);
+  const [view, setView] = useState<"wallet" | "leaders" | "insights">("wallet"),
+    [rankingView, setRankingView] = useState<"trading" | "lp">("trading"),
+    [hasWallet, setHasWallet] = useState(false);
+  function openLiquidity() {
+    changeView("leaders");
+    setRankingView("lp");
+    requestAnimationFrame(() => {
+      const details =
+        document.querySelector<HTMLDetailsElement>("#liquidity details");
+      if (details) {
+        details.open = true;
+        details.scrollIntoView({
+          block: "center",
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+            .matches
+            ? "auto"
+            : "smooth",
+        });
+      }
+    });
+  }
+  function changeView(next: "wallet" | "leaders" | "insights") {
+    setView(next);
+    setSelected(null);
+    window.scrollTo({
+      top: 0,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  }
   async function load() {
     setRefreshing(true);
     try {
@@ -211,515 +243,626 @@ export default function Page() {
   return (
     <>
       <header className="topbar">
-        <a className="brand" href="#">
+        <a
+          className="brand"
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            changeView("wallet");
+          }}
+        >
           <span className="brand-icon">
-            m<span>.</span>
+            <img src="/metric-mark.svg" alt="" width="30" height="30" />
           </span>
           metric<span className="brand-tag">INTELLIGENCE</span>
         </a>
         <nav aria-label="Main navigation">
-          <a className="nav-active" href="#check">
-            Check wallet
-          </a>
-          <a className="nav-secondary" href="#leaderboard">
-            Traders
-          </a>
-          <a className="nav-secondary" href="#cohorts">
-            Top cohorts
-          </a>
-          <a href="#liquidity">Liquidity</a>
+          <button
+            className={view === "wallet" ? "nav-active" : ""}
+            aria-current={view === "wallet" ? "page" : undefined}
+            onClick={() => changeView("wallet")}
+          >
+            Wallet checker
+          </button>
+          <button
+            className={view === "leaders" ? "nav-active" : ""}
+            aria-current={view === "leaders" ? "page" : undefined}
+            onClick={() => changeView("leaders")}
+          >
+            Leaderboards
+          </button>
+          <button
+            className={view === "insights" ? "nav-active" : ""}
+            aria-current={view === "insights" ? "page" : undefined}
+            onClick={() => changeView("insights")}
+          >
+            Insights
+          </button>
         </nav>
         <div className="source">
-          <i /> Onchain data
+          <a href="https://metric.xyz/" target="_blank" rel="noreferrer">
+            Metric protocol ↗
+          </a>
         </div>
       </header>
-      <main>
-        <div className="eyebrow">
-          <span>METRIC PROTOCOL</span>
-          <span>/</span>USER ANALYTICS <span className="version">V.01</span>
-        </div>
-        <div className="hero">
-          <div>
-            <h1>
-              Where does your
-              <br />
-              <em>wallet rank?</em>
-            </h1>
-            <p>
-              Your volume. Your liquidity. Your place in Metric.
-              <br />
-              Enter an address to see its trading and LP rankings.
-            </p>
+      <main className={hasWallet ? "has-wallet" : ""}>
+        <div hidden={view !== "wallet"} className="wallet-view">
+          <div className="eyebrow">
+            <span>METRIC PROTOCOL</span>
+            <span>/</span>WALLET INTELLIGENCE
           </div>
-          <div className="hero-meta">
-            <span className="live-label">
-              <i />
-              {refreshing ? "Loading…" : "Indexed data snapshot"}
-            </span>
-            <strong>{report ? date(report.asOf) + " · Kyiv time" : "—"}</strong>
-            <button onClick={load} disabled={refreshing} className="refresh">
-              ↻ Refresh snapshot
-            </button>
-          </div>
-        </div>
-        {error && (
-          <div role="alert" className="notice error">
-            {error}
-          </div>
-        )}
-        <WalletCheck
-          manifest={report?.walletLookup}
-          network={chain}
-          onNetworkChange={setChain}
-          chains={report?.chains ?? []}
-          trading={scope}
-          liquidity={liquidity}
-          loading={refreshing || !report}
-          example={
-            liquidity?.wallets.find((w) => w.address in liquidity.traderWallets)
-              ?.address ?? all?.wallets[0]?.address
-          }
-          onRefresh={load}
-        />
-        <section className="controls">
-          <div className="chain-filters" aria-label="Network filter">
-            {[
-              { id: 0, name: "All networks" },
-              ...(report?.chains ?? [
-                { id: 1, name: "Ethereum" },
-                { id: 56, name: "BNB Chain" },
-                { id: 4663, name: "Robinhood" },
-              ]),
-            ].map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setChain(String(c.id))}
-                aria-pressed={chain === String(c.id)}
-                className={chain === String(c.id) ? "active" : ""}
-              >
-                {c.id > 0 && <span className={"chain-dot chain-" + c.id} />}{" "}
-                {c.name}
-              </button>
-            ))}
-          </div>
-          <div className="periods" aria-label="Leaderboard period">
-            {[
-              ["24h", "24h"],
-              ["7d", "7d"],
-              ["all", scope?.allTimeComplete ? "All time" : "Indexed history"],
-            ].map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setPeriod(key)}
-                aria-pressed={period === key}
-                className={period === key ? "active" : ""}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </section>
-        {scope && (
-          <div className="coverage-note">
-            <span className="tiny-dot" />
-            {scope.allTimeComplete
-              ? "Complete history of registered pools"
-              : "Historical backfill in progress"}
-            <span className="coverage-range">
-              {date(scope.since)} — {date(scope.until)} · {report?.poolCount}{" "}
-              registered pools
-            </span>
-          </div>
-        )}
-        <section className="kpis" aria-label="Key metrics">
-          <Metric
-            label={scope?.allTimeComplete ? "Total traders" : "Indexed wallets"}
-            value={all ? n(all.totalWallets) : "—"}
-            note={
-              scope?.allTimeComplete
-                ? "Unique addresses across all indexed history"
-                : "All-time total awaits complete historical coverage"
-            }
-            index="01"
-          />
-          <Metric
-            label="Active traders · 24h"
-            value={all ? n(all.active24h) : "—"}
-            note={
-              active24Complete
-                ? "At least one swap in the last 24 hours"
-                : "Partially indexed activity window"
-            }
-            index="02"
-            accent
-          />
-          <Metric
-            label="Active traders · 7d"
-            value={active7Complete && all ? n(all.active7d) : "—"}
-            note={
-              active7Complete
-                ? "Unique addresses over the last 7 days"
-                : "Waiting for complete 7-day coverage"
-            }
-            index="03"
-          />
-          <Metric
-            label={"Volume · " + windowLabel}
-            value={stats ? money(stats.totalVolumeUsd) : "—"}
-            note={
-              stats
-                ? n(stats.swapCount) + " swaps · estimated USD"
-                : "Estimated pool-swap volume"
-            }
-            index="04"
-          />
-        </section>
-        <section className="analysis-grid" id="analysis">
-          <article className="panel concentration">
-            <div className="panel-top">
-              <span className="eyebrow">01 / CONCENTRATION</span>
-              <span className="pill">TOP 1%</span>
+          <div className="hero">
+            <div>
+              <h1>
+                KNOW YOUR
+                <br />
+                <em>METRIC RANK.</em>
+              </h1>
+              <p>Your trading volume and liquidity. In perspective.</p>
             </div>
-            <div className="big-stat">
-              {stats ? pct(stats.top1SharePct) : "—"}
-              <span>volume</span>
-            </div>
-            <h2>
-              A small cohort.
-              <br />
-              An outsized impact.
-            </h2>
-            <p>
-              {stats ? (
-                <>
-                  {n(stats.top1Count)}{" "}
-                  {stats.top1Count === 1
-                    ? "address accounts for"
-                    : "addresses account for"}{" "}
-                  {pct(stats.top1SharePct)} of estimated volume over{" "}
-                  {windowLabel}.
-                </>
-              ) : (
-                "Loading onchain data…"
-              )}
-            </p>
-            <div
-              className="share-bar"
-              role="img"
-              aria-label={
-                "Top 1% volume share: " +
-                (stats ? pct(stats.top1SharePct) : "—")
-              }
-            >
-              <span style={{ width: (stats?.top1SharePct ?? 0) + "%" }} />
-            </div>
-            <div className="legend">
-              <span>
+            <MetricOrbit />
+            <div className="hero-meta">
+              <span className="live-label">
                 <i />
-                Top 1%
+                {refreshing ? "Loading snapshot" : "Snapshot"}
               </span>
-              <span>
-                <i />
-                Other addresses
-              </span>
+              <strong>
+                {report ? date(report.asOf) + " · Kyiv time" : "—"}
+              </strong>
+              <button onClick={load} disabled={refreshing} className="refresh">
+                ↻ Refresh
+              </button>
             </div>
-            <div className="cutoff">
-              <span>Cohort entry threshold</span>
-              <strong>{stats ? money(stats.cutoffUsd) : "—"}</strong>
+          </div>
+          {error && (
+            <div role="alert" className="notice error">
+              {error}
             </div>
-            <small>
-              Cohort size rounds up; ties at the cutoff are included.
-            </small>
-          </article>
-          <article className="panel distribution">
-            <div className="panel-top">
-              <div>
-                <span className="eyebrow">02 / VOLUME DISTRIBUTION</span>
-                <h2>The top 10 addresses</h2>
-              </div>
-              <span className="subtle">
-                {stats ? pct(stats.top10SharePct) : "—"} of total volume
-              </span>
+          )}
+          <WalletCheck
+            manifest={report?.walletLookup}
+            network={chain}
+            onNetworkChange={setChain}
+            chains={report?.chains ?? []}
+            trading={scope}
+            liquidity={liquidity}
+            loading={refreshing || !report}
+            example={
+              liquidity?.wallets.find(
+                (w) => w.address in liquidity.traderWallets,
+              )?.address ?? all?.wallets[0]?.address
+            }
+            onRefresh={load}
+            onAddressChange={setHasWallet}
+            onOpenLiquidity={openLiquidity}
+          />
+          <div className="home-summary">
+            <div>
+              <span>Indexed traders</span>
+              <strong>{all ? n(all.totalWallets) : "—"}</strong>
             </div>
-            <div
-              className="volume-chart"
-              role="group"
-              aria-label="Volume comparison of the ten largest traders"
+            <div>
+              <span>All-time volume ≈</span>
+              <strong>{all ? money(all.totalVolumeUsd) : "—"}</strong>
+            </div>
+            <div>
+              <span>Active liquidity ≈</span>
+              <strong>
+                {liquidity ? money(liquidity.knownActiveLiquidityUsd) : "—"}
+              </strong>
+            </div>
+            <a
+              href="#leaderboard"
+              onClick={(e) => {
+                e.preventDefault();
+                changeView("leaders");
+              }}
             >
-              {(stats?.wallets.slice(0, 10) ?? []).map((w, i) => (
+              Explore the rankings <Arrow />
+            </a>
+          </div>
+        </div>
+        <div hidden={view === "wallet"} className="protocol-view" key={view}>
+          <div className="dashboard-heading">
+            <div>
+              <span className="eyebrow">
+                METRIC /{" "}
+                {view === "leaders" ? "LEADERBOARDS" : "PROTOCOL INSIGHTS"}
+              </span>
+              <h1>
+                {view === "leaders"
+                  ? "The market, ranked."
+                  : "See the bigger picture."}
+              </h1>
+              <p>
+                {view === "leaders"
+                  ? "Explore the wallets behind Metric’s volume and liquidity."
+                  : "Volume concentration, cohort benchmarks and protocol activity."}
+              </p>
+            </div>
+            <span className="snapshot-tag">
+              Snapshot · {report ? date(report.asOf) : "Loading"}
+            </span>
+          </div>
+          {view === "leaders" && (
+            <div className="ranking-tabs" aria-label="Ranking type">
+              <button
+                aria-pressed={rankingView === "trading"}
+                onClick={() => setRankingView("trading")}
+              >
+                Trading volume
+              </button>
+              <button
+                aria-pressed={rankingView === "lp"}
+                onClick={() => setRankingView("lp")}
+              >
+                LP liquidity
+              </button>
+            </div>
+          )}
+          <section className="controls">
+            <div className="chain-filters" aria-label="Network filter">
+              {[
+                { id: 0, name: "All networks" },
+                ...(report?.chains ?? [
+                  { id: 1, name: "Ethereum" },
+                  { id: 56, name: "BNB Chain" },
+                  { id: 4663, name: "Robinhood" },
+                ]),
+              ].map((c) => (
                 <button
-                  className="chart-column"
-                  key={w.address}
-                  onClick={() => setSelected(w)}
-                  title={`${w.address}: ${money(w.volumeUsd, false)}`}
+                  key={c.id}
+                  onClick={() => setChain(String(c.id))}
+                  aria-pressed={chain === String(c.id)}
+                  className={chain === String(c.id) ? "active" : ""}
                 >
-                  <span>{money(w.volumeUsd)}</span>
-                  <div className="bar-track">
-                    <i
-                      className={i === 0 ? "first" : ""}
-                      style={{
-                        height:
-                          Math.max(
-                            2,
-                            (100 * w.volumeUsd) /
-                              (stats?.wallets[0]?.volumeUsd || 1),
-                          ) + "%",
-                      }}
-                    />
-                  </div>
-                  <label>{String(i + 1).padStart(2, "0")}</label>
+                  {c.id > 0 && <span className={"chain-dot chain-" + c.id} />}{" "}
+                  {c.name}
                 </button>
               ))}
             </div>
-            <div className="chart-footer">
-              <span>Address rank by volume</span>
-              <span>
-                Select a bar to explore the wallet <Arrow />
+            <div
+              className="periods"
+              aria-label="Leaderboard period"
+              hidden={view === "leaders" && rankingView === "lp"}
+            >
+              {[
+                ["24h", "24h"],
+                ["7d", "7d"],
+                [
+                  "all",
+                  scope?.allTimeComplete ? "All time" : "Indexed history",
+                ],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setPeriod(key)}
+                  aria-pressed={period === key}
+                  className={period === key ? "active" : ""}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
+          {scope && (
+            <div className="coverage-note">
+              <span className="tiny-dot" />
+              {scope.allTimeComplete
+                ? "Complete history of registered pools"
+                : "Historical backfill in progress"}
+              <span className="coverage-range">
+                {date(scope.since)} — {date(scope.until)} · {report?.poolCount}{" "}
+                registered pools
               </span>
             </div>
-            <div className="mini-metrics">
-              <div>
-                <span>Median wallet volume</span>
-                <strong>{stats ? money(stats.medianVolumeUsd) : "—"}</strong>
-              </div>
-              <div>
-                <span>Swaps with a USD estimate</span>
-                <strong>
-                  {stats?.swapCount
-                    ? pct((100 * stats.pricedSwaps) / stats.swapCount)
-                    : "—"}
-                </strong>
-              </div>
-              <div>
-                <span>Transactions</span>
-                <strong>{stats ? n(stats.transactionCount) : "—"}</strong>
-              </div>
-            </div>
-          </article>
-        </section>
-        <section className="panel leaderboard" id="leaderboard">
-          <div className="table-heading">
-            <div>
-              <span className="eyebrow">03 / TRADER LEADERBOARD</span>
-              <h2>
-                Traders by volume{" "}
-                <span>{stats ? n(stats.totalWallets) : "—"}</span>
-              </h2>
-            </div>
-            <button className="export" onClick={download} disabled={!stats}>
-              ↓ Export CSV
-            </button>
-          </div>
-          <div className="table-controls">
-            <label className="search">
-              <span aria-hidden="true">⌕</span>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search wallet address 0x…"
-                aria-label="Search wallets"
-              />
-            </label>
-            <label className="sort">
-              Sort by{" "}
-              <select value={sort} onChange={(e) => setSort(e.target.value)}>
-                <option value="volume">Volume ↓</option>
-                <option value="swaps">Swap count ↓</option>
-                <option value="recent">Latest activity ↓</option>
-              </select>
-            </label>
-          </div>
-          {stats && stats.wallets.length < stats.totalWallets && (
-            <p className="listing-note">
-              Showing the top {n(stats.wallets.length)} by volume. Search,
-              sorting and CSV export apply to these listed wallets; protocol
-              metrics include all {n(stats.totalWallets)} traders.
-            </p>
           )}
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Wallet / cohort</th>
-                  <th className="numeric">Volume, USD ≈</th>
-                  <th className="numeric">Share</th>
-                  <th className="numeric">Swaps</th>
-                  <th className="numeric">Avg. swap ≈</th>
-                  <th>Favorite pool</th>
-                  <th>Last active</th>
-                  <th>
-                    <span className="sr-only">Profile</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {wallets.slice((page - 1) * 20, page * 20).map((w) => (
-                  <tr key={w.address}>
-                    <td>
-                      <span className={w.rank <= 3 ? "rank leading" : "rank"}>
-                        {String(w.rank).padStart(2, "0")}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className="wallet-link"
-                        onClick={() => setSelected(w)}
-                      >
-                        <span
-                          className="identicon"
-                          style={{
-                            background: `hsl(${parseInt(w.address.slice(2, 6), 16) % 360} 35% 25%)`,
-                          }}
-                        />
-                        {short(w.address)}
-                      </button>
-                      {w.cohort === "Top 1%" && (
-                        <span className="cohort">TOP 1%</span>
-                      )}
-                    </td>
-                    <td className="numeric volume-cell">
-                      {w.pricedSwaps ? money(w.volumeUsd, false) : "Unpriced"}
-                      <div className="row-bar">
-                        <i style={{ width: w.sharePct + "%" }} />
-                      </div>
-                    </td>
-                    <td className="numeric">{pct(w.sharePct)}</td>
-                    <td className="numeric">{n(w.swaps)}</td>
-                    <td className="numeric">{money(w.avgSwapUsd, false)}</td>
-                    <td>
-                      <span className="pool-tag">{w.favoritePool}</span>
-                    </td>
-                    <td className="time-cell">{date(w.lastActive)}</td>
-                    <td>
-                      <button
-                        className="open-wallet"
-                        onClick={() => setSelected(w)}
-                        aria-label={"Open " + w.address}
-                      >
-                        <Arrow />
-                      </button>
-                    </td>
+          <section
+            className="kpis"
+            aria-label="Key metrics"
+            hidden={view === "leaders" && rankingView === "lp"}
+          >
+            <Metric
+              label={
+                scope?.allTimeComplete ? "Total traders" : "Indexed wallets"
+              }
+              value={all ? n(all.totalWallets) : "—"}
+              note={
+                scope?.allTimeComplete
+                  ? "Unique addresses across all indexed history"
+                  : "All-time total awaits complete historical coverage"
+              }
+              index="01"
+            />
+            <Metric
+              label="Active traders · 24h"
+              value={all ? n(all.active24h) : "—"}
+              note={
+                active24Complete
+                  ? "At least one swap in the last 24 hours"
+                  : "Partially indexed activity window"
+              }
+              index="02"
+              accent
+            />
+            <Metric
+              label="Active traders · 7d"
+              value={active7Complete && all ? n(all.active7d) : "—"}
+              note={
+                active7Complete
+                  ? "Unique addresses over the last 7 days"
+                  : "Waiting for complete 7-day coverage"
+              }
+              index="03"
+            />
+            <Metric
+              label={"Volume · " + windowLabel}
+              value={stats ? money(stats.totalVolumeUsd) : "—"}
+              note={
+                stats
+                  ? n(stats.swapCount) + " swaps · estimated USD"
+                  : "Estimated pool-swap volume"
+              }
+              index="04"
+            />
+          </section>
+          <section
+            className="analysis-grid"
+            id="analysis"
+            hidden={view !== "insights"}
+          >
+            <article className="panel concentration">
+              <div className="panel-top">
+                <span className="eyebrow">01 / CONCENTRATION</span>
+                <span className="pill">TOP 1%</span>
+              </div>
+              <div className="big-stat">
+                {stats ? pct(stats.top1SharePct) : "—"}
+                <span>volume</span>
+              </div>
+              <h2>Volume concentration.</h2>
+              <p>
+                {stats ? (
+                  <>
+                    {n(stats.top1Count)}{" "}
+                    {stats.top1Count === 1
+                      ? "address accounts for"
+                      : "addresses account for"}{" "}
+                    {pct(stats.top1SharePct)} of estimated volume over{" "}
+                    {windowLabel}.
+                  </>
+                ) : (
+                  "Loading onchain data…"
+                )}
+              </p>
+              <div
+                className="share-bar"
+                role="img"
+                aria-label={
+                  "Top 1% volume share: " +
+                  (stats ? pct(stats.top1SharePct) : "—")
+                }
+              >
+                <span style={{ width: (stats?.top1SharePct ?? 0) + "%" }} />
+              </div>
+              <div className="legend">
+                <span>
+                  <i />
+                  Top 1%
+                </span>
+                <span>
+                  <i />
+                  Other addresses
+                </span>
+              </div>
+              <div className="cutoff">
+                <span>Cohort entry threshold</span>
+                <strong>{stats ? money(stats.cutoffUsd) : "—"}</strong>
+              </div>
+              <small>
+                Cohort size rounds up; ties at the cutoff are included.
+              </small>
+            </article>
+            <article className="panel distribution">
+              <div className="panel-top">
+                <div>
+                  <span className="eyebrow">02 / VOLUME DISTRIBUTION</span>
+                  <h2>The top 10 addresses</h2>
+                </div>
+                <span className="subtle">
+                  {stats ? pct(stats.top10SharePct) : "—"} of total volume
+                </span>
+              </div>
+              <div
+                className="volume-chart"
+                role="group"
+                aria-label="Volume comparison of the ten largest traders"
+              >
+                {(stats?.wallets.slice(0, 10) ?? []).map((w, i) => (
+                  <button
+                    className="chart-column"
+                    key={w.address}
+                    onClick={() => setSelected(w)}
+                    title={`${w.address}: ${money(w.volumeUsd, false)}`}
+                  >
+                    <span>{money(w.volumeUsd)}</span>
+                    <div className="bar-track">
+                      <i
+                        className={i === 0 ? "first" : ""}
+                        style={{
+                          height:
+                            Math.max(
+                              2,
+                              (100 * w.volumeUsd) /
+                                (stats?.wallets[0]?.volumeUsd || 1),
+                            ) + "%",
+                        }}
+                      />
+                    </div>
+                    <label>{String(i + 1).padStart(2, "0")}</label>
+                  </button>
+                ))}
+              </div>
+              <div className="chart-footer">
+                <span>Address rank by volume</span>
+                <span>
+                  Select a bar to explore the wallet <Arrow />
+                </span>
+              </div>
+              <div className="mini-metrics">
+                <div>
+                  <span>Median wallet volume</span>
+                  <strong>{stats ? money(stats.medianVolumeUsd) : "—"}</strong>
+                </div>
+                <div>
+                  <span>Swaps with a USD estimate</span>
+                  <strong>
+                    {stats?.swapCount
+                      ? pct((100 * stats.pricedSwaps) / stats.swapCount)
+                      : "—"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Transactions</span>
+                  <strong>{stats ? n(stats.transactionCount) : "—"}</strong>
+                </div>
+              </div>
+            </article>
+          </section>
+          <section
+            className="panel leaderboard"
+            id="leaderboard"
+            hidden={view !== "leaders" || rankingView !== "trading"}
+          >
+            <div className="table-heading">
+              <div>
+                <span className="eyebrow">TRADING VOLUME</span>
+                <h2>
+                  Traders by volume{" "}
+                  <span>{stats ? n(stats.totalWallets) : "—"}</span>
+                </h2>
+              </div>
+              <button className="export" onClick={download} disabled={!stats}>
+                ↓ Export CSV
+              </button>
+            </div>
+            <div className="table-controls">
+              <label className="search">
+                <span aria-hidden="true">⌕</span>
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search wallet address 0x…"
+                  aria-label="Search wallets"
+                />
+              </label>
+              <label className="sort">
+                Sort by{" "}
+                <select value={sort} onChange={(e) => setSort(e.target.value)}>
+                  <option value="volume">Volume ↓</option>
+                  <option value="swaps">Swap count ↓</option>
+                  <option value="recent">Latest activity ↓</option>
+                </select>
+              </label>
+            </div>
+            {stats && stats.wallets.length < stats.totalWallets && (
+              <p className="listing-note">
+                Top {n(stats.wallets.length)} of {n(stats.totalWallets)}{" "}
+                traders. Search and CSV cover listed wallets.
+              </p>
+            )}
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Wallet / cohort</th>
+                    <th className="numeric">Volume, USD ≈</th>
+                    <th className="numeric">Share</th>
+                    <th className="numeric">Swaps</th>
+                    <th className="numeric">Avg. swap ≈</th>
+                    <th>Favorite pool</th>
+                    <th>Last active</th>
+                    <th>
+                      <span className="sr-only">Profile</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {stats && !wallets.length && (
-            <div className="empty">
-              {query
-                ? "No matching address in this leaderboard and network."
-                : "No swaps indexed for this period yet."}
+                </thead>
+                <tbody>
+                  {wallets.slice((page - 1) * 20, page * 20).map((w) => (
+                    <tr key={w.address}>
+                      <td>
+                        <span className={w.rank <= 3 ? "rank leading" : "rank"}>
+                          {String(w.rank).padStart(2, "0")}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className="wallet-link"
+                          onClick={() => setSelected(w)}
+                        >
+                          <span
+                            className="identicon"
+                            style={{
+                              background: `hsl(${parseInt(w.address.slice(2, 6), 16) % 360} 35% 25%)`,
+                            }}
+                          />
+                          {short(w.address)}
+                        </button>
+                        {w.cohort === "Top 1%" && (
+                          <span className="cohort">TOP 1%</span>
+                        )}
+                      </td>
+                      <td className="numeric volume-cell">
+                        {w.pricedSwaps ? money(w.volumeUsd, false) : "Unpriced"}
+                        <div className="row-bar">
+                          <i style={{ width: w.sharePct + "%" }} />
+                        </div>
+                      </td>
+                      <td className="numeric">{pct(w.sharePct)}</td>
+                      <td className="numeric">{n(w.swaps)}</td>
+                      <td className="numeric">{money(w.avgSwapUsd, false)}</td>
+                      <td>
+                        <span className="pool-tag">{w.favoritePool}</span>
+                      </td>
+                      <td className="time-cell">{date(w.lastActive)}</td>
+                      <td>
+                        <button
+                          className="open-wallet"
+                          onClick={() => setSelected(w)}
+                          aria-label={"Open " + w.address}
+                        >
+                          <Arrow />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-          <div className="pagination">
-            <span>
-              {wallets.length
-                ? `${(page - 1) * 20 + 1}–${Math.min(page * 20, wallets.length)} of ${n(wallets.length)} addresses`
-                : "0 addresses"}{" "}
-              · {windowLabel}
-            </span>
-            <div>
-              <button
-                onClick={() => setPage((p) => p - 1)}
-                disabled={page === 1}
-                aria-label="Previous page"
-              >
-                ←
-              </button>
+            {stats && !wallets.length && (
+              <div className="empty">
+                {query
+                  ? "No matching address in this leaderboard and network."
+                  : "No swaps indexed for this period yet."}
+              </div>
+            )}
+            <div className="pagination">
               <span>
-                {page} / {Math.max(1, Math.ceil(wallets.length / 20))}
+                {wallets.length
+                  ? `${(page - 1) * 20 + 1}–${Math.min(page * 20, wallets.length)} of ${n(wallets.length)} addresses`
+                  : "0 addresses"}{" "}
+                · {windowLabel}
               </span>
-              <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page * 20 >= wallets.length}
-                aria-label="Next page"
-              >
-                →
-              </button>
+              <div>
+                <button
+                  onClick={() => setPage((p) => p - 1)}
+                  disabled={page === 1}
+                  aria-label="Previous page"
+                >
+                  ←
+                </button>
+                <span>
+                  {page} / {Math.max(1, Math.ceil(wallets.length / 20))}
+                </span>
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page * 20 >= wallets.length}
+                  aria-label="Next page"
+                >
+                  →
+                </button>
+              </div>
             </div>
+          </section>
+          <div hidden={view !== "insights"}>
+            <CohortSection
+              cohorts={all?.cohorts}
+              liquidity={liquidity}
+              complete={scope?.allTimeComplete ?? false}
+              asOf={scope?.until}
+            />
           </div>
-        </section>
-        <CohortSection
-          cohorts={all?.cohorts}
-          liquidity={liquidity}
-          complete={scope?.allTimeComplete ?? false}
-          asOf={scope?.until}
-        />
-        <LiquiditySection data={liquidity} chains={report?.chains ?? []} />
-        <section className="method" id="method">
-          <div>
-            <span className="eyebrow">ABOUT THE DATA</span>
-            <h2>
-              Transparent metrics.
-              <br />
-              Clear boundaries.
-            </h2>
-            <p>
-              This leaderboard describes address activity, not profitability or
-              a count of people.
-            </p>
+          <div hidden={view !== "leaders" || rankingView !== "lp"}>
+            <LiquiditySection data={liquidity} chains={report?.chains ?? []} />
           </div>
-          <div className="method-items">
-            <details open>
-              <summary>What counts as a trader?</summary>
-              <p>
-                A unique transaction sender (tx.from), deduplicated across
-                networks. Swap.sender identifies the execution router
-                separately. An address may belong to a bot, solver, relayer or
-                bundler and may represent other users.
-              </p>
-            </details>
-            <details>
-              <summary>How is volume calculated?</summary>
-              <p>
-                One token leg per Swap event. Allowlisted USDC/USDT quantities
-                are valued at $1; other tokens use the latest API spot price.
-                These are estimates, not historical execution prices. Unpriced
-                swaps count toward activity but are excluded from volume. A
-                multi-pool route can generate multiple swaps in a single
-                transaction.
-              </p>
-            </details>
-            <details>
-              <summary>How is the top 1% defined?</summary>
-              <p>
-                The first ceil(N / 100) addresses ranked by estimated volume,
-                including ties at the cutoff. For small samples, the actual
-                share of wallets may exceed 1%. High volume does not establish
-                profitability.
-              </p>
-            </details>
-            <details>
-              <summary>Coverage and freshness</summary>
-              <p>
-                A static snapshot from the local indexer. Refresh reloads the
-                latest published snapshot; it does not trigger indexing. The
-                24-hour and 7-day windows end at the indexed cutoff.
-                Cross-network comparisons use a common covered interval. The
-                all-time total becomes available after indexing from pool
-                creation.
-              </p>
-              <ul>
-                {report?.coverage.map((c) => (
-                  <li key={c.chain_id}>
-                    {report.chains.find((x) => x.id === c.chain_id)?.name}:{" "}
-                    {n(c.from_block)}–{n(c.to_block)} · {c.status}
-                  </li>
-                ))}
-              </ul>
-            </details>
+          <div hidden={view !== "insights"}>
+            <section className="method" id="method">
+              <div>
+                <span className="eyebrow">ABOUT THE DATA</span>
+                <h2>About the data.</h2>
+                <p>
+                  This leaderboard describes address activity, not profitability
+                  or a count of people.
+                </p>
+              </div>
+              <div className="method-items">
+                <details>
+                  <summary>What counts as a trader?</summary>
+                  <p>
+                    A unique transaction sender (tx.from), deduplicated across
+                    networks. Swap.sender identifies the execution router
+                    separately. An address may belong to a bot, solver, relayer
+                    or bundler and may represent other users.
+                  </p>
+                </details>
+                <details>
+                  <summary>How is volume calculated?</summary>
+                  <p>
+                    One token leg per Swap event. Allowlisted USDC/USDT
+                    quantities are valued at $1; other tokens use the latest API
+                    spot price. These are estimates, not historical execution
+                    prices. Unpriced swaps count toward activity but are
+                    excluded from volume. A multi-pool route can generate
+                    multiple swaps in a single transaction.
+                  </p>
+                </details>
+                <details>
+                  <summary>How is the top 1% defined?</summary>
+                  <p>
+                    The first ceil(N / 100) addresses ranked by estimated
+                    volume, including ties at the cutoff. For small samples, the
+                    actual share of wallets may exceed 1%. High volume does not
+                    establish profitability.
+                  </p>
+                </details>
+                <details>
+                  <summary>Coverage and freshness</summary>
+                  <p>
+                    A static snapshot from the local indexer. Refresh reloads
+                    the latest published snapshot; it does not trigger indexing.
+                    The 24-hour and 7-day windows end at the indexed cutoff.
+                    Cross-network comparisons use a common covered interval. The
+                    all-time total becomes available after indexing from pool
+                    creation.
+                  </p>
+                  <ul>
+                    {report?.coverage.map((c) => (
+                      <li key={c.chain_id}>
+                        {report.chains.find((x) => x.id === c.chain_id)?.name}:{" "}
+                        {n(c.from_block)}–{n(c.to_block)} · {c.status}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </div>
+            </section>
           </div>
-        </section>
+        </div>
         <footer>
-          <a className="brand" href="#">
+          <a
+            className="brand"
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              changeView("wallet");
+            }}
+          >
             metric<span className="brand-tag">INTELLIGENCE</span>
           </a>
           <span>
-            Metric Public API + Envio HyperSync ·{" "}
-            {report
-              ? "Snapshot generated " + date(report.generatedAt)
-              : "Indexing data"}
+            Indexed onchain ·{" "}
+            {report ? "As of " + date(report.asOf) : "Loading"}
           </span>
           <a
             href="https://github.com/Nerevarine22/dbmetric"

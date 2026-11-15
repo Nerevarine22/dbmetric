@@ -8,6 +8,8 @@ The main feature is **Check any wallet**: paste an EVM address to see its exact 
 
 Each export streams the full SQL-ranked trader population and all LP profiles into address-prefix JSON shards under `public/wallets/`. The browser fetches only the shard for the selected address/network. Content hashes provide immutable caching and snapshot matching; unchanged data retains the same file names. Wallet lookups make no RPC or Envio requests. Missing activity, withdrawn LPs, missing prices and partial coverage have distinct states. USD ranks use estimated priced volume and fully valued positive LP portfolios, with separate denominators. The UI shows the indexed dates, rather than claiming live balances.
 
+The interface follows Metric's graphite/cyan visual direction, with separate Wallet checker, Leaderboards and Insights views. A native SVG orbit, card entrances and milestone bars provide lightweight motion; all animation respects `prefers-reduced-motion`. Activity details and rank methodology expand on demand. The Metric mark comes from [metric.xyz](https://metric.xyz/metriclp_biglogo.svg); Space Grotesk is bundled locally under its included SIL Open Font License in `public/fonts/`.
+
 Requires Node.js 24+.
 
 ```sh

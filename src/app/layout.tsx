@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./style.css";
+import "./premium.css";
 export const metadata: Metadata = {
   title: "Metric | Wallet Rank Checker",
   description:

@@ -3,5 +3,6 @@ const config: NextConfig = {
   output: "export",
   images: { unoptimized: true },
   poweredByHeader: false,
+  devIndicators: false,
 };
 export default config;
