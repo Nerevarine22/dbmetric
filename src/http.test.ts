@@ -49,3 +49,19 @@ test("persistent transport failures stop at the configured limit", async () => {
   }), /after 2 attempt/);
   assert.equal(calls, 2);
 });
+test("archive-provider 400 failures retry, but invalid parameters retain diagnostic details", async () => {
+  let calls = 0;
+  const result = await requestText("https://example.invalid", {}, {
+    label: "archive", retryProvider400: true,
+    fetcher: async () => ++calls === 1 ? new Response(JSON.stringify({error:{message:"upstream temporarily unavailable"}}),{status:400}) : new Response("ok"),
+    sleep: async () => {},
+  });
+  assert.equal(calls, 2); assert.equal(result.body, "ok");
+  calls = 0;
+  await assert.rejects(requestText("https://example.invalid", {}, {
+    label: "archive", retryProvider400: true,
+    fetcher: async () => { calls++; return new Response(JSON.stringify({error:{message:"invalid params"}}),{status:400}); },
+    sleep: async () => { assert.fail("Invalid parameters must not retry"); },
+  }), /HTTP 400: invalid params after 1 attempt/);
+  assert.equal(calls, 1);
+});

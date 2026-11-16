@@ -5,15 +5,21 @@ type Options = {
   beforeAttempt?: () => Promise<void>;
   onAttempt?: (status: number, bytes: number) => void;
   onRetry?: (delayMs: number) => void;
+  retryProvider400?: boolean;
   fetcher?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
 };
 class HttpError extends Error {
-  constructor(readonly status: number, readonly retryAfter: string | null) {
-    super(`HTTP ${status}`);
+  constructor(readonly status: number, readonly retryAfter: string | null, readonly detail = "") {
+    super(`HTTP ${status}${detail ? ": " + detail : ""}`);
   }
 }
-function transient(error: unknown) {
+function transient(error: unknown, retryProvider400 = false) {
+  if (error instanceof HttpError && error.status === 400 && retryProvider400) {
+    // Some archive providers use 400 for intermittent backend failures.
+    // Known request-size/gas failures still go straight to adaptive splitting.
+    return !/invalid (params|parameters|argument|api key)|unauthori[sz]ed|forbidden|gas|too large|request size|response size/i.test(error.detail);
+  }
   if (error instanceof HttpError)
     return error.status === 408 || error.status === 429 || error.status >= 500;
   if (!(error instanceof Error)) return false;
@@ -40,8 +46,15 @@ export async function requestText(url: string, init: RequestInit, options: Optio
       if (!response.ok) {
         observed = true;
         options.onAttempt?.(response.status, 0);
-        await response.body?.cancel().catch(() => {});
-        throw new HttpError(response.status, response.headers.get("retry-after"));
+        let detail = "";
+        try {
+          const raw = await response.text();
+          const j = JSON.parse(raw);
+          detail = String(j.error?.message ?? j.message ?? "").slice(0, 250);
+        } catch (error) {
+          if (error instanceof Error && (error.name === "TimeoutError" || error instanceof TypeError)) throw error;
+        }
+        throw new HttpError(response.status, response.headers.get("retry-after"), detail);
       }
       const body = await response.text();
       observed = true;
@@ -49,7 +62,7 @@ export async function requestText(url: string, init: RequestInit, options: Optio
       return { status: response.status, body };
     } catch (error) {
       if (!observed) options.onAttempt?.(0, 0);
-      if (init.signal?.aborted || !transient(error) || attempt + 1 === maxAttempts) {
+      if (init.signal?.aborted || !transient(error, options.retryProvider400) || attempt + 1 === maxAttempts) {
         const reason = error instanceof Error ? error.message : "request failed";
         throw new Error(`${label}: ${reason} after ${attempt + 1} attempt(s)`, { cause: error });
       }

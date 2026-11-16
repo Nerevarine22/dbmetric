@@ -14,6 +14,7 @@ async function gatedRpc(url: string, method: string, params: unknown[]) {
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
     }, {
       label: `LP archive RPC ${method}`, timeoutMs: 45_000, maxAttempts: 7,
+      retryProvider400: true,
       beforeAttempt: async () => {
         const wait = Math.max(0, nextRequest - Date.now());
         nextRequest = Math.max(Date.now(), nextRequest) + 1100;
