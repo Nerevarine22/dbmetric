@@ -279,11 +279,15 @@ export default function Page() {
             Insights
           </button>
         </nav>
-        <div className="source">
-          <a href="https://metric.xyz/" target="_blank" rel="noreferrer">
-            Metric protocol ↗
-          </a>
-        </div>
+        <a
+          className="referral-link"
+          href="https://app.metric.xyz/r/atoms"
+          target="_blank"
+          rel="sponsored noopener noreferrer"
+          aria-label="Launch Metric (referral link)"
+        >
+          Launch Metric <span aria-hidden="true">↗</span>
+        </a>
       </header>
       <main className={hasWallet ? "has-wallet" : ""}>
         <div hidden={view !== "wallet"} className="wallet-view">
