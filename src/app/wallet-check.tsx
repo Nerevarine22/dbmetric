@@ -50,7 +50,8 @@ const usd = (v: number | null | undefined) =>
         }).format(v);
 const date = (v: number) =>
   new Date(v * 1000).toLocaleString("en-GB", {
-    timeZone: "Europe/Kyiv",
+    timeZone: "UTC",
+    timeZoneName: "short",
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -631,7 +632,7 @@ export function WalletCheck({
               <div className="profile-bottom">
                 <span className="profile-snapshot">
                   <i /> Snapshot ·{" "}
-                  {trading ? date(trading.until) + " Kyiv" : "Unavailable"}
+                  {trading ? date(trading.until) : "Unavailable"}
                 </span>
                 <details className="rank-method">
                   <summary>
@@ -647,10 +648,10 @@ export function WalletCheck({
                     </p>
                     <p>
                       Trading cutoff:{" "}
-                      {trading ? date(trading.until) + " Kyiv" : "unavailable"}.
+                      {trading ? date(trading.until) : "unavailable"}.
                       LP cutoff:{" "}
                       {liquidity?.asOf
-                        ? date(liquidity.asOf) + " Kyiv"
+                        ? date(liquidity.asOf)
                         : "unavailable"}
                       .{" "}
                       <button onClick={onOpenLiquidity}>

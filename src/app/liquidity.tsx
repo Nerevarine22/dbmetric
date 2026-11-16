@@ -58,7 +58,8 @@ const usd = (v: number | null) =>
 const short = (s: string) => s.slice(0, 6) + "…" + s.slice(-4);
 const when = (s: number) =>
   new Date(s * 1000).toLocaleString("en-GB", {
-    timeZone: "Europe/Kyiv",
+    timeZone: "UTC",
+    timeZoneName: "short",
     day: "2-digit",
     month: "short",
     hour: "2-digit",
@@ -130,7 +131,7 @@ export function LiquiditySection({
           <p>Ranked by active capital in pools.</p>
         </div>
         <span className="subtle">
-          {data.asOf ? when(data.asOf) + " · Kyiv" : "Awaiting valuation"}
+          {data.asOf ? when(data.asOf) : "Awaiting valuation"}
         </span>
       </div>
       {(!data.historyComplete || !data.rankingComplete) && (
@@ -205,7 +206,7 @@ export function LiquiditySection({
             >
               block {number(c.blockNumber)} ↗
             </a>{" "}
-            · {when(c.timestamp)} Kyiv
+            · {when(c.timestamp)}
           </p>
         ))}
       </details>

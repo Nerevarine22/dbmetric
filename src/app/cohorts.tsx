@@ -190,10 +190,11 @@ export function CohortSection({
           24h volume is measured at{" "}
           {asOf
             ? new Date(asOf * 1000).toLocaleString("en-GB", {
-                timeZone: "Europe/Kyiv",
+                timeZone: "UTC",
+                timeZoneName: "short",
               })
-            : "the trading snapshot cutoff"}{" "}
-          Kyiv. LP balances use per-chain snapshot blocks. Historical deposits
+            : "the trading snapshot cutoff"}.
+          {" "}LP balances use per-chain snapshot blocks. Historical deposits
           are repriced at synced spot quotes; repeated capital is counted.
         </p>
       </details>

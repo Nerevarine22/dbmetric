@@ -70,7 +70,8 @@ const pct = (v: number) =>
 const short = (s: string) => s.slice(0, 6) + "…" + s.slice(-4);
 const date = (s: number) =>
   new Date(s * 1000).toLocaleString("en-US", {
-    timeZone: "Europe/Kyiv",
+    timeZone: "UTC",
+    timeZoneName: "short",
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -313,7 +314,7 @@ export default function Page() {
                 {refreshing ? "Loading snapshot" : "Snapshot"}
               </span>
               <strong>
-                {report ? date(report.asOf) + " · Kyiv time" : "—"}
+                {report ? date(report.asOf) : "—"}
               </strong>
               <button onClick={load} disabled={refreshing} className="refresh">
                 ↻ Refresh

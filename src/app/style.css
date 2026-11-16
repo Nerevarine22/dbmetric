@@ -746,8 +746,9 @@ th.numeric {
     monospace;
   color: var(--muted);
 }
-tr:hover td {
-  background: #20261a;
+tr:hover td,
+tr:focus-within td {
+  background: #263943;
 }
 .open-wallet {
   background: transparent;
