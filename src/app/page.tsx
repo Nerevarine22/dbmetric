@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Wallet } from "../core";
 import { LiquiditySection, type LPScope } from "./liquidity";
@@ -93,6 +93,8 @@ export default function Page() {
   const [view, setView] = useState<"wallet" | "leaders" | "insights">("wallet"),
     [rankingView, setRankingView] = useState<"trading" | "lp">("trading"),
     [hasWallet, setHasWallet] = useState(false);
+  const latestReport = useRef<Report | null>(null);
+  const loadingReport = useRef(false);
   function openLiquidity() {
     changeView("leaders");
     setRankingView("lp");
@@ -122,6 +124,8 @@ export default function Page() {
     });
   }
   async function load() {
+    if (loadingReport.current) return;
+    loadingReport.current = true;
     setRefreshing(true);
     try {
       const r = await fetch(
@@ -134,16 +138,48 @@ export default function Page() {
         { cache: "no-store" },
       );
       if (!r.ok) throw new Error("No indexed snapshot is available yet.");
-      setReport(await r.json());
+      const next = await r.json() as Report;
+      latestReport.current = next;
+      setReport(next);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to load analytics");
     } finally {
+      loadingReport.current = false;
       setRefreshing(false);
     }
   }
   useEffect(() => {
     void load();
+    const controller = new AbortController();
+    let checking = false;
+    async function checkVersion() {
+      if (checking || loadingReport.current || document.hidden || document.querySelector(".modal-backdrop")) return;
+      checking = true;
+      try {
+        const base = new URL(process.env.NEXT_PUBLIC_METRIC_SNAPSHOT_URL || "/analytics.json", location.href);
+        const versionUrl = new URL("snapshot-version.json", base);
+        versionUrl.searchParams.set("t", String(Date.now()));
+        const response = await fetch(versionUrl, { cache: "no-store", signal: controller.signal });
+        if (!response.ok) return;
+        const version = await response.json() as { generatedAt: number; snapshotId: string };
+        const current = latestReport.current;
+        if (Number.isFinite(version.generatedAt) && (!current || version.generatedAt > current.generatedAt ||
+          (version.generatedAt === current.generatedAt && version.snapshotId !== current.walletLookup?.snapshotId))) {
+          await load();
+        }
+      } catch {
+        // Keep the last good data visible when offline or publication is delayed.
+      } finally { checking = false; }
+    }
+    const timer = window.setInterval(() => void checkVersion(), 60_000);
+    const onVisible = () => { if (!document.hidden) void checkVersion(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
   useEffect(() => {
     setPage(1);

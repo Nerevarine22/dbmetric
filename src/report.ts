@@ -6,6 +6,7 @@ import { sqlAnalytics } from "./sqlAnalytics";
 import { archiveSnapshot } from "./snapshots";
 import { buildLPReport } from "./lp/report";
 import { WalletLookupExport, pruneWalletShards } from "./walletExport";
+import { createHash } from "node:crypto";
 import type { WalletLookupManifest } from "./wallets";
 export function exportReport(db: DatabaseSync) {
   const pools = loadPools(db);
@@ -130,6 +131,14 @@ export function exportReport(db: DatabaseSync) {
       JSON.stringify(report, null, 2),
     );
     archiveSnapshot(db, report);
+    const versionTmp = "public/snapshot-version.json.tmp";
+    fs.writeFileSync(versionTmp, JSON.stringify({
+      generatedAt: report.generatedAt,
+      asOf: report.asOf,
+      snapshotId: walletLookup.snapshotId,
+      sha256: createHash("sha256").update(JSON.stringify(report)).digest("hex"),
+    }));
+    fs.renameSync(versionTmp, "public/snapshot-version.json");
     const globalScope = scopes[0] as {
       allTimeComplete: boolean;
       windows: Record<string, ReturnType<typeof sqlAnalytics>>;

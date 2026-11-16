@@ -30,6 +30,8 @@ npm run sync -- --days=7         # Widen missing coverage to seven days, then re
 npm run sync -- --days=all       # Widen missing coverage to pool creation; does NOT rebuild an already complete history
 npm run sync -- --export-only   # Recalculate the snapshot with zero API requests
 npm run sync:watch -- --minutes=60
+npm run refresh:publish         # Scan, validate and publish to GitHub once
+npm run snapshot:check          # Validate the complete exported snapshot without API calls
 npm run backup                  # Consistent SQLite backup using the SQLite online backup API
 ```
 
@@ -62,6 +64,8 @@ Aggregate JSON is **not** a replacement for the raw database. Keep the database 
 Import `Nerevarine22/dbmetric`, repository root, Next.js preset. `vercel.json` sets build `npm run build` and explicitly sets Vercel's Output Directory to `.next`. This overrides any stale `out` value saved in the Vercel project settings. The Next.js adapter reads build manifests from `.next` and handles `output: "export"` automatically; the local static export is still generated in `out`. Do not change Vercel's Output Directory to `out`, which causes `NEXT_NO_ROUTES_MANIFEST`. No database or HyperSync token is needed on Vercel.
 
 The indexer runs on this computer or a server with a durable volume. Vercel serves the generated snapshot. Builds, page views and refreshes do not call HyperSync.
+
+The local hourly publisher and its scheduled-agent instructions are documented in [HOURLY_REFRESH.md](HOURLY_REFRESH.md). Visible tabs check the small `snapshot-version.json` file once per minute and reload analytics only when the published version changes. Hidden tabs and open profile dialogs defer the check. Snapshot-only pushes skip the GitHub Actions code checks; Vercel's Git deployment still runs.
 
 To publish new data initially:
 
