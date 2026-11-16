@@ -1,4 +1,5 @@
 import { CHAINS, FACTORY, type Pool } from "./core";
+import { requestText } from "./http";
 export async function syncPools(): Promise<Pool[]> {
   const pools: Pool[] = [];
   let offset: number | null = 0;
@@ -15,10 +16,11 @@ export async function syncPools(): Promise<Pool[]> {
       count: "500",
       offset: String(offset),
     }).toString();
-    const r = await fetch(url, { signal: AbortSignal.timeout(30000) });
-    if (!r.ok) throw new Error(`Metric metadata HTTP ${r.status}`);
+    const { body: raw } = await requestText(url.toString(), {}, {
+      label: `Metric metadata offset ${offset}`, maxAttempts: 4,
+    });
     // Preserve uint64 sentinels before the JSON parser converts them to float.
-    const body = (await r.text()).replace(
+    const body = raw.replace(
       /("priceProviderCooldownSecs"\s*:\s*)(\d+)/g,
       '$1"$2"',
     );

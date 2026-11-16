@@ -1,4 +1,5 @@
 // JSON transport uses HyperSync's public /query API and works without native bindings on Windows.
+import { requestText } from "./http";
 export async function queryHyperSync(
   chainId: number,
   token: string,
@@ -9,8 +10,7 @@ export async function queryHyperSync(
   onRequest?: (status: number, bytes: number) => void,
   light = false,
 ) {
-  for (let attempt = 0; ; attempt++) {
-    const r = await fetch(`https://${chainId}.hypersync.xyz/query`, {
+    const { body } = await requestText(`https://${chainId}.hypersync.xyz/query`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -46,30 +46,7 @@ export async function queryHyperSync(
         max_num_transactions: 50000,
         max_num_blocks: 50000,
       }),
-      signal: AbortSignal.timeout(60000),
-    });
-    if ((r.status === 429 || r.status >= 500) && attempt < 8) {
-      onRequest?.(r.status, 0);
-      const delay = Math.min(
-        30000,
-        Math.max(
-          1000,
-          Number(r.headers.get("retry-after") || 0) * 1000,
-          1000 * 2 ** attempt,
-        ),
-      );
-      console.log(
-        `HyperSync ${chainId}: rate limit/retry, waiting ${delay / 1000}s`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      continue;
-    }
-    if (!r.ok) {
-      onRequest?.(r.status, 0);
-      throw new Error(`HyperSync ${chainId}: HTTP ${r.status}`);
-    }
-    const body = await r.text();
-    onRequest?.(r.status, Buffer.byteLength(body));
+    }, { label: `HyperSync ${chainId}`, maxAttempts: 9, onAttempt: onRequest });
     const j = JSON.parse(body);
     const chunks = Array.isArray(j.data) ? j.data : [j.data];
     return {
@@ -104,5 +81,4 @@ export async function queryHyperSync(
         }[],
       },
     };
-  }
 }

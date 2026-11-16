@@ -82,7 +82,6 @@ try {
     "failed",
     runId,
   );
-  if (loadPools(db).length) exportReport(db);
   throw e;
 } finally {
   db.close();

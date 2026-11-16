@@ -4,46 +4,28 @@ import {
   multicall3Abi,
   type Hex,
 } from "viem";
+import { requestText } from "../http";
 const MULTICALL = "0xca11bde05977b3631167028862be2a173976ca11" as const;
 let nextRequest = 0;
 async function gatedRpc(url: string, method: string, params: unknown[]) {
-  for (let attempt = 0; attempt < 7; attempt++) {
-    const wait = Math.max(0, nextRequest - Date.now());
-    nextRequest = Math.max(Date.now(), nextRequest) + 1100;
-    if (wait) await new Promise((r) => setTimeout(r, wait));
-    const r = await fetch(url, {
+    const { body } = await requestText(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-      signal: AbortSignal.timeout(45000),
+    }, {
+      label: `LP archive RPC ${method}`, timeoutMs: 45_000, maxAttempts: 7,
+      beforeAttempt: async () => {
+        const wait = Math.max(0, nextRequest - Date.now());
+        nextRequest = Math.max(Date.now(), nextRequest) + 1100;
+        if (wait) await new Promise(resolve => setTimeout(resolve, wait));
+      },
+      onRetry: delay => { nextRequest = Math.max(nextRequest, Date.now() + delay); },
     });
-    if (r.status === 429 || r.status >= 500) {
-      const delay = Math.max(
-        Number(r.headers.get("retry-after") || 0) * 1000,
-        Math.min(30000, 2000 * 2 ** attempt),
-      );
-      nextRequest = Math.max(nextRequest, Date.now() + delay);
-      console.log(
-        `LP archive RPC retry ${r.status}; cooldown ${delay / 1000}s`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      continue;
-    }
-    if (!r.ok) {
-      let message = "";
-      try {
-        const j = await r.json();
-        message = String(j.error?.message || j.message || "").slice(0, 250);
-      } catch {}
-      throw new Error(`LP archive RPC HTTP ${r.status}: ${message}`);
-    }
-    const j = await r.json();
+    const j = JSON.parse(body);
     if (j.error)
       throw new Error(`LP archive RPC ${j.error.code}: ${j.error.message}`);
     if (j.result === undefined) throw new Error("Missing LP RPC result");
     return j.result as Hex;
-  }
-  throw new Error("LP archive RPC retry limit reached");
 }
 type Request = {
   to: Hex;

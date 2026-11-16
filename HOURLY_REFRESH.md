@@ -18,6 +18,8 @@ The snapshot version file lets visible browser tabs check once per minute and lo
 
 The SQLite database, resumable block cursors, LP bin accumulators and private API token remain local. `data/automation/latest.sqlite` is replaced atomically at most once per UTC day; earlier manual backups are untouched. A failed scan never pushes partial results. A minimum of 12 GiB free space is required. Existing snapshot archives are retained, so monitor disk usage over time.
 
-Model choice: use GPT-6 Luna with low reasoning. Keep each response short and use the script instead of analyzing the repository on every run. Do not promise a fixed token or money cost.
+The hourly schedule returns to the original chat instead of creating a new chat on every run. This mode inherits that chat's model; it does not have a separate model override. Keep each response short and use the script instead of analyzing the repository on every run. Do not promise a fixed token or money cost.
+
+HTTP requests retry temporary timeouts, network failures, HTTP 408/429 and server errors with bounded backoff, including errors while reading response bodies. Metadata retries each page up to four times; successful earlier pages and database checkpoints are not rebuilt. Authentication and other permanent client errors fail immediately. A metadata failure preserves the last published JSON instead of regenerating an old snapshot with a new timestamp.
 
 For local scheduled tasks, keep the computer powered on, awake, online and the Codex desktop app running. Existing public data remains accessible when this PC is offline, but new snapshots stop until local execution resumes.
