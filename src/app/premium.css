@@ -1379,6 +1379,7 @@ footer > a:last-child {
   line-height: 1.8;
 }
 .modal-backdrop {
+  z-index: 100;
   backdrop-filter: blur(8px);
   background: #080d13bc;
 }

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Wallet } from "../core";
 import { LiquiditySection, type LPScope } from "./liquidity";
 import { CohortSection } from "./cohorts";
@@ -152,6 +153,7 @@ export default function Page() {
     const previous = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.querySelector<HTMLButtonElement>(".wallet-modal .close")?.focus();
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") setSelected(null);
       if (e.key === "Tab") {
@@ -877,7 +879,7 @@ export default function Page() {
           </a>
         </footer>
       </main>
-      {selected && (
+      {selected && createPortal(
         <div className="modal-backdrop" onClick={() => setSelected(null)}>
           <section
             className="wallet-modal"
@@ -887,7 +889,6 @@ export default function Page() {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              autoFocus
               className="close"
               onClick={() => setSelected(null)}
               aria-label="Close profile"
@@ -968,7 +969,8 @@ export default function Page() {
               individual person.
             </p>
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

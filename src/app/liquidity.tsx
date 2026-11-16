@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { LPWallet } from "../lp/report";
 export type LPScope = {
   asOf: number | null;
@@ -82,6 +83,7 @@ export function LiquiditySection({
     const previous = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.querySelector<HTMLButtonElement>(".lp-modal .close")?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setSelected(null);
       if (e.key === "Tab") {
@@ -313,7 +315,7 @@ export function LiquiditySection({
           </div>
         </div>
       </article>
-      {selected && (
+      {selected && createPortal(
         <div className="modal-backdrop" onClick={() => setSelected(null)}>
           <section
             className="wallet-modal lp-modal"
@@ -323,7 +325,6 @@ export function LiquiditySection({
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              autoFocus
               className="close"
               aria-label="Close LP profile"
               onClick={() => setSelected(null)}
@@ -390,7 +391,8 @@ export function LiquiditySection({
               same capital again; net flows do not establish profit.
             </p>
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
     </section>
   );
