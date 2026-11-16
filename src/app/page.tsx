@@ -907,13 +907,6 @@ export default function Page() {
             Indexed onchain ·{" "}
             {report ? "As of " + date(report.asOf) : "Loading"}
           </span>
-          <a
-            href="https://github.com/Nerevarine22/dbmetric"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Project source <Arrow />
-          </a>
         </footer>
       </main>
       {selected && createPortal(
