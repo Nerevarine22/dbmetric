@@ -12,6 +12,7 @@ import { acquireWriterLock } from "./lock";
 import { indexLPChain } from "./lp/indexer";
 import { valueLPChain } from "./lp/valuation";
 import { valueLPFromEvents } from "./lp/replay";
+import { useEventReplay } from "./lp/mode";
 const releaseLock = acquireWriterLock();
 const db = openDb();
 db.prepare(
@@ -50,7 +51,7 @@ try {
     const lp = await Promise.allSettled(
       CHAINS.map(async (c) => {
         await indexLPChain(db, pools, c);
-        if (c.id === 56 && !process.env.LP_RPC_56)
+        if (useEventReplay(c.id))
           await valueLPFromEvents(db, pools, c);
         else await valueLPChain(db, pools, c);
       }),

@@ -1,0 +1,43 @@
+name: Refresh Metric snapshot
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: metric-cloud-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    if: github.repository == 'Nerevarine22/dbmetric' && github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ENVIO_API_TOKEN: ${{ secrets.ENVIO_API_TOKEN }}
+      METRIC_CLOUD_PUBLISH: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Validate cloud configuration
+        run: |
+          test -n "$ENVIO_API_TOKEN" || { echo 'ENVIO_API_TOKEN repository secret is missing'; exit 1; }
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git config user.name "${GITHUB_REPOSITORY_OWNER}"
+          owner_id=$(gh api "users/${GITHUB_REPOSITORY_OWNER}" --jq .id)
+          git config user.email "${owner_id}+${GITHUB_REPOSITORY_OWNER}@users.noreply.github.com"
+      - name: Restore persistent database
+        id: restore
+        run: npm run cloud:restore
+      - name: Scan, validate and publish
+        id: publish
+        run: npm run refresh:publish
+      - name: Preserve resumable database even after an incomplete scan
+        if: always() && steps.restore.outcome == 'success'
+        run: npm run cloud:save

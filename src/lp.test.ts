@@ -23,6 +23,13 @@ import { lpCutoffs, buildLPReport, type LPWallet } from "./lp/report";
 import { openDb, savePools } from "./db";
 import { saveLPPage } from "./lp/db";
 import { FACTORY, type Pool } from "./core";
+import { useEventReplay } from "./lp/mode";
+test("BNB and Robinhood replay events unless an explicit archive RPC is configured", () => {
+  assert.equal(useEventReplay(56, {}), true);
+  assert.equal(useEventReplay(4663, {}), true);
+  assert.equal(useEventReplay(1, {}), false);
+  assert.equal(useEventReplay(4663, { LP_RPC_4663: "https://example.invalid" }), false);
+});
 const address = (n: number) => ("0x" + n.toString(16).padStart(40, "0")) as Hex;
 const pool: Pool = {
   chainId: 1,

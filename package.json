@@ -12,6 +12,8 @@
     "sync:watch": "node --import tsx src/watch.ts",
     "snapshot:check": "node --import tsx src/checkSnapshot.ts",
     "refresh:publish": "node --env-file-if-exists=.env --import tsx src/refresh.ts",
+    "cloud:restore": "node --import tsx src/cloudCheckpoint.ts restore",
+    "cloud:save": "node --env-file-if-exists=.env --import tsx src/cloudCheckpoint.ts save",
     "backup": "node --env-file-if-exists=.env --import tsx src/cli.ts --backup",
     "sync:lp": "node --env-file-if-exists=.env --import tsx src/lp/cli.ts"
   },

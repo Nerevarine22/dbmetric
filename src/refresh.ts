@@ -91,7 +91,9 @@ try {
   }
   if (!fs.existsSync("data/metric.sqlite")) throw new Error("Persistent SQLite database missing; do not start a new history scan");
   const disk = fs.statfsSync("data");
-  if (disk.bavail * disk.bsize < 12 * 1024 ** 3) throw new Error("Less than 12 GiB free; cannot safely scan and back up");
+  const cloud = process.env.GITHUB_ACTIONS === "true" && process.env.METRIC_CLOUD_PUBLISH === "1";
+  const minimumFree = (cloud ? 2 : 12) * 1024 ** 3;
+  if (disk.bavail * disk.bsize < minimumFree) throw new Error(`Insufficient free space (${cloud ? 2 : 12} GiB required)`);
   if (git(["branch", "--show-current"]).output !== "main") throw new Error("Expected local main branch");
   if (git(["remote", "get-url", "origin"]).output !== "https://github.com/Nerevarine22/dbmetric.git")
     throw new Error("Unexpected Git remote; refusing to publish");
@@ -143,7 +145,7 @@ try {
     const failed = db.prepare("SELECT COUNT(*) n FROM lp_pool_valuations WHERE status NOT IN ('verified','replayed') OR error IS NOT NULL").get();
     if (failed?.n !== 0) throw new Error("LP pool verification failed");
     const day = new Date().toISOString().slice(0, 10);
-    if (state.backupDay !== day || !fs.existsSync(path.join(directory, "latest.sqlite"))) {
+    if (!cloud && (state.backupDay !== day || !fs.existsSync(path.join(directory, "latest.sqlite")))) {
       writeLog("Creating the daily rolling SQLite backup");
       const temporary = path.join(directory, "backup.tmp.sqlite");
       if (fs.existsSync(temporary)) fs.unlinkSync(temporary);

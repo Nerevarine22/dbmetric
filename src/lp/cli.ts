@@ -9,6 +9,7 @@ import { indexLPChain } from "./indexer";
 import { valueLPChain } from "./valuation";
 import { exportReport } from "../report";
 import { valueLPFromEvents } from "./replay";
+import { useEventReplay } from "./mode";
 const release = acquireWriterLock(),
   db = openDb();
 try {
@@ -40,7 +41,7 @@ try {
     const results = await Promise.allSettled(
       selected.map((c) =>
         process.argv.includes("--from-events") ||
-        (c.id === 56 && !process.env.LP_RPC_56)
+        useEventReplay(c.id)
           ? valueLPFromEvents(db, pools, c)
           : valueLPChain(db, pools, c),
       ),

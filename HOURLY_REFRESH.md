@@ -1,5 +1,7 @@
 # Hourly Metric snapshot publisher
 
+The preferred hosted schedule is documented in [CLOUD_REFRESH.md](CLOUD_REFRESH.md). The instructions below describe the former local scheduler and manual fallback; do not run both schedules concurrently.
+
 This task runs on the owner's Windows PC, in the existing checkout at `D:\Metric DB\metric-users`. Do not create a worktree: the ignored SQLite database and `.env` exist only in this checkout. The user authorizes hourly incremental scans and normal pushes of verified snapshot files to `https://github.com/Nerevarine22/dbmetric.git`, branch `main`.
 
 Run **one command** from this checkout:
