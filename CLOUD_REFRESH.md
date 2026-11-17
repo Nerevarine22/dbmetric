@@ -2,7 +2,7 @@
 
 The public repository runs `.github/workflows/refresh.yml` on GitHub's standard Ubuntu runner at minute 17 of every hour (UTC). GitHub can delay scheduled runs. Use **Actions → Refresh Metric snapshot → Run workflow** for a manual update. The PC and Codex do not need to be running; the job makes no AI calls.
 
-Standard GitHub-hosted runners are free for public repositories. This setup uses no paid server, Actions artifact storage or database service. Keep this repository public. GitHub and Envio service limits still apply; the scanner uses the existing Envio token and resumes from committed block cursors instead of fetching all history again.
+Standard GitHub-hosted runners are [free for public repositories](https://docs.github.com/en/billing/concepts/product-billing/github-actions). This setup uses no paid server, Actions artifact storage or database service. Keep this repository public. [Releases allow files below 2 GiB without a documented total release size or bandwidth cap](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases). GitHub and Envio service limits still apply; the scanner uses the existing Envio token and resumes from committed block cursors instead of fetching all history again.
 
 ## Credentials and database
 

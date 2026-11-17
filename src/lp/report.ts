@@ -433,7 +433,7 @@ export function buildLPReport(
     methodology: {
       owner: "LP position owner from event.provider, not transaction sender.",
       activeLiquidity:
-        "Position shares / bin total shares times scaled reserves at pinned blocks. Ethereum/Robinhood use storage reconciliation. BNB can replay LiquidityAdded/Removed and BinSwapped from pool creation, with atomic bin accumulators and finalized-block hash guards. Each valuation source is disclosed.",
+        "Position shares / bin total shares times scaled reserves at pinned blocks. Ethereum defaults to storage reconciliation. BNB and Robinhood default to replaying LiquidityAdded/Removed and BinSwapped from pool creation, with atomic bin accumulators and finalized-block hash guards. Archive RPC overrides select storage reconciliation. Each valuation source is disclosed.",
       ranking:
         "Top 1/5/10% among fully USD-valued, positive active LP portfolios. Unpriced or unverifiable active portfolios are excluded and disclosed. This is a separate population from trader-volume rankings.",
       deposits:

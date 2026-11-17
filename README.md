@@ -63,9 +63,9 @@ Aggregate JSON is **not** a replacement for the raw database. Keep the database 
 
 Import `Nerevarine22/dbmetric`, repository root, Next.js preset. `vercel.json` sets build `npm run build` and explicitly sets Vercel's Output Directory to `.next`. This overrides any stale `out` value saved in the Vercel project settings. The Next.js adapter reads build manifests from `.next` and handles `output: "export"` automatically; the local static export is still generated in `out`. Do not change Vercel's Output Directory to `out`, which causes `NEXT_NO_ROUTES_MANIFEST`. No database or HyperSync token is needed on Vercel.
 
-The indexer runs on this computer or a server with a durable volume. Vercel serves the generated snapshot. Builds, page views and refreshes do not call HyperSync.
+The indexer runs hourly on a standard GitHub Actions Ubuntu runner, restoring its persistent SQLite checkpoint from the public `metric-state` release. Vercel serves the generated snapshot. Builds, page views and refreshes do not call HyperSync.
 
-The local hourly publisher and its scheduled-agent instructions are documented in [HOURLY_REFRESH.md](HOURLY_REFRESH.md). Visible tabs check the small `snapshot-version.json` file once per minute and reload analytics only when the published version changes. Hidden tabs and open profile dialogs defer the check. Snapshot-only pushes skip the GitHub Actions code checks; Vercel's Git deployment still runs.
+The hosted schedule, repository secret and checkpoint recovery are documented in [CLOUD_REFRESH.md](CLOUD_REFRESH.md). [HOURLY_REFRESH.md](HOURLY_REFRESH.md) describes the former local fallback. Visible tabs check the small `snapshot-version.json` file once per minute and reload analytics only when the published version changes. Hidden tabs and open profile dialogs defer the check. Snapshot-only pushes skip the GitHub Actions code checks; Vercel's Git deployment still runs.
 
 To publish new data initially:
 
@@ -76,7 +76,7 @@ git commit -m "Update Metric analytics snapshot"
 git push origin main
 ```
 
-Vercel's Git integration can deploy the commit. For updates without rebuilds, upload the snapshot **and its referenced wallet shards**, preserving their relative `wallets/` paths, to a persistent public object store with CORS and set `NEXT_PUBLIC_METRIC_SNAPSHOT_URL` at build time. Upload shards before replacing analytics.json. That upload and scanner require a persistent worker. This repository does not provision one or enable a cloud schedule. The local watcher is available when explicitly started.
+Vercel's Git integration can deploy the commit. The cloud workflow publishes validated snapshots automatically. An optional alternative is to upload the snapshot **and its referenced wallet shards**, preserving their relative `wallets/` paths, to a public object store with CORS and set `NEXT_PUBLIC_METRIC_SNAPSHOT_URL` at build time. Upload shards before replacing analytics.json. Object-store hosting is not provisioned by this repository.
 
 Do not use a Vercel Function's local filesystem as a durable SQLite database. If indexing later moves to Vercel, migrate writes and checkpoints to external persistent storage and use bounded scan jobs. [Vercel filesystem documentation](https://vercel.com/docs/functions/runtimes#file-system-support).
 
@@ -108,9 +108,9 @@ npm run sync -- --swaps-only            # Skip the LP refresh
 
 Normal `npm run sync` now updates swaps and LP data. Standalone LP commands target the existing finalized swap-index block for each chain. LP history has independent atomic checkpoints and starts at pool creation. The indexed LP owner is event.provider; indexed and legacy non-indexed uint80 salt layouts are supported.
 
-**Ethereum and Robinhood:** pinned-block storage reads verify every open owner/salt/bin share balance, reconcile owner share supply with bin total shares, and reconcile bin reserves with pool slot1 totals. Multicall batches reduce HTTP calls and split if a provider rejects a large batch. An `LP_RPC_<chainId>` override can select an archive endpoint. Immutable scale multipliers and token/factory identity are verified from getImmutables().
+**Ethereum:** pinned-block storage reads verify every open owner/salt/bin share balance, reconcile owner share supply with bin total shares, and reconcile bin reserves with pool slot1 totals. Multicall batches reduce HTTP calls and split if a provider rejects a large batch. An `LP_RPC_<chainId>` override can select an archive endpoint. Immutable scale multipliers and token/factory identity are verified from getImmutables().
 
-**BNB default:** public archive storage access is restricted, so the scanner reconstructs bin reserves from LiquidityAdded, LiquidityRemoved and BinSwapped. BinSwapped deltas already include the retained LP fee; the fee is not added a second time. Immutable scales are verified through latest-state reads of the immutable contract parameters. Compact per-pool/bin accumulators commit atomically with each HyperSync cursor and finalized block hash. Restarting appends from those cursors; a hash mismatch triggers a replay of the affected prefix. Newly registered pools backfill separately. This requires a one-time BinSwapped history scan, after which only new events are fetched. Set LP_RPC_56 to opt into pinned archive storage reads instead.
+**BNB and Robinhood default:** public archive storage access is restricted or unreliable, so the scanner reconstructs bin reserves from LiquidityAdded, LiquidityRemoved and BinSwapped. BinSwapped deltas already include the retained LP fee; the fee is not added a second time. Immutable scales are verified through latest-state reads of the immutable contract parameters. Compact per-pool/bin accumulators commit atomically with each HyperSync cursor and finalized block hash. Restarting appends from those cursors; a hash mismatch triggers a replay of the affected prefix. Newly registered pools backfill separately. This requires a one-time BinSwapped history scan, after which only new events are fetched. Set LP_RPC_56 or LP_RPC_4663 to opt into pinned archive storage reads instead.
 
 Active LP USD is the current share of both token balances, using synced metadata quotes. Lifetime deposits and withdrawals are normalized native token flows repriced at those same quotes, **not historical execution USD or profit**. Adding and withdrawing the same capital repeatedly increases gross historical flows, while only remaining shares determine active capital.
 

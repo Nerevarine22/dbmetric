@@ -38,6 +38,12 @@ jobs:
       - name: Scan, validate and publish
         id: publish
         run: npm run refresh:publish
+      - name: Show scan diagnostics on failure
+        if: failure() && steps.restore.outcome == 'success'
+        run: |
+          for log in data/automation/*.log; do
+            if [ -f "$log" ]; then tail -n 30 "$log"; fi
+          done
       - name: Preserve resumable database even after an incomplete scan
         if: always() && steps.restore.outcome == 'success'
         run: npm run cloud:save
