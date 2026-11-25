@@ -4,7 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { isSnapshotPath, sha256, validateSnapshot } from "./snapshotValidation";
 
-function fixture(check: (root: string, report: any, save: () => void) => void) {
+function fixture(check: (root: string, report: any, save: () => void,
+  updateShard: (chain: number, change: (shard: any) => void) => void) => void) {
   fs.mkdirSync("data", { recursive: true });
   const root = path.resolve(fs.mkdtempSync("data/validation-test-"));
   try {
@@ -35,7 +36,17 @@ function fixture(check: (root: string, report: any, save: () => void) => void) {
       fs.writeFileSync(path.join(root, "snapshot-version.json"), JSON.stringify({ generatedAt: r.generatedAt,
         asOf: r.asOf, snapshotId: r.walletLookup.snapshotId, sha256: sha256(raw) }));
     };
-    save(); check(root, r, save);
+    const updateShard = (chain: number, change: (shard: any) => void) => {
+      const old = r.walletLookup.files[chain].aa;
+      const shard = JSON.parse(fs.readFileSync(path.join(root, old), "utf8"));
+      change(shard);
+      const raw = Buffer.from(JSON.stringify(shard));
+      const file = `wallets/${chain}/aa-${sha256(raw).slice(0, 16)}.json`;
+      fs.writeFileSync(path.join(root, file), raw);
+      r.walletLookup.files[chain].aa = file;
+      r.walletLookup.walletCounts[chain] = Object.keys(shard.wallets).length;
+    };
+    save(); check(root, r, save, updateShard);
   } finally {
     assert(root.startsWith(path.resolve("data") + path.sep));
     fs.rmSync(root, { recursive: true, force: true });
@@ -50,6 +61,42 @@ test("partial chain and LP snapshots cannot be published", () => fixture((root, 
   r.coverage[0].status = "complete";
   r.liquidity.scopes[0].rankingComplete = false; save();
   assert.throws(() => validateSnapshot(root), /Incomplete LP/);
+}));
+
+test("verified but unpriced LPs remain disclosed and unranked without stopping trader publication", () => fixture((root, r, save, updateShard) => {
+  const unpriced = "0x" + "aa".repeat(19) + "bb";
+  for (const chain of [0, 1, 56, 4663]) {
+    Object.assign(r.liquidity.scopes[chain], { valuationComplete: true, rankingComplete: false,
+      unpricedActiveLPWallets: 1, unverifiedActiveLPWallets: 0, unpricedOrUnverifiedWallets: 1, totalLPWallets: 2 });
+    updateShard(chain, shard => {
+      shard.wallets[unpriced] = { trading: {}, lp: { address: unpriced, rank: null, activeUsd: null, missingCurrentPositions: 1 } };
+    });
+  }
+  save();
+  const result = validateSnapshot(root);
+  assert.equal(result.report.scopes[0].windows.all.totalWallets, 1);
+  assert.equal(result.report.liquidity.scopes[0].valuedActiveLPWallets, 1);
+  assert.equal(result.report.liquidity.scopes[0].rankingComplete, false);
+  updateShard(0, shard => { shard.wallets[unpriced].lp.activeUsd = 0; }); save();
+  assert.throws(() => validateSnapshot(root), /exclusion count/);
+}));
+
+test("unverified LP positions cannot be relabeled as missing prices", () => fixture((root, r, save) => {
+  Object.assign(r.liquidity.scopes[0], { valuationComplete: true, rankingComplete: false,
+    unpricedActiveLPWallets: 0, unverifiedActiveLPWallets: 1, unpricedOrUnverifiedWallets: 1 });
+  save(); assert.throws(() => validateSnapshot(root), /Incomplete LP position verification/);
+  Object.assign(r.liquidity.scopes[0], { unverifiedActiveLPWallets: 0 });
+  save(); assert.throws(() => validateSnapshot(root), /Inconsistent LP pricing/);
+  Object.assign(r.liquidity.scopes[0], { unpricedActiveLPWallets: 1, failedPools: 1 });
+  save(); assert.throws(() => validateSnapshot(root), /Incomplete LP history or pool verification/);
+}));
+
+test("unknown LP value cannot receive a rank", () => fixture((root, r, save, updateShard) => {
+  updateShard(0, shard => {
+    const entry = Object.values(shard.wallets)[0] as any;
+    entry.lp.activeUsd = null; entry.lp.missingCurrentPositions = 1;
+  }); save();
+  assert.throws(() => validateSnapshot(root), /Unpriced LP portfolio cannot receive a USD rank/);
 }));
 test("modified wallet shards fail their content checksum", () => fixture((root, r) => {
   fs.appendFileSync(path.join(root, r.walletLookup.files[0].aa), " ");

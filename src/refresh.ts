@@ -177,7 +177,8 @@ try {
     console.log(JSON.stringify({ status: "published", asOf, commit, files,
       traders: report.scopes[0].windows.all.totalWallets,
       volume24hUsd: report.scopes[0].windows["24h"].totalVolumeUsd,
-      activeLPs: report.liquidity.scopes[0].activeLPWallets, log }));
+      activeLPs: report.liquidity.scopes[0].activeLPWallets,
+      unpricedActiveLPs: report.liquidity.scopes[0].unpricedActiveLPWallets ?? 0, log }));
   }
 } catch (error) {
   const message = redact(error instanceof Error ? error.message : String(error));

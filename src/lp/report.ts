@@ -167,10 +167,12 @@ export function buildLPReport(
       return (
         state &&
         ["verified", "replayed"].includes(String(state.status)) &&
+        !state.error &&
         Number(state.block_number) === headMap.get(chain)
       );
     };
     const owners = new Map<string, Working>();
+    const unverifiedOwners = new Set<string>();
     const get = (a: string) => {
       if (!owners.has(a)) owners.set(a, wallet(a));
       return owners.get(a)!;
@@ -211,21 +213,30 @@ export function buildLPReport(
       w.openBinPositions++;
       const pool = poolMap.get(`${p.chain_id}:${p.pool_address}`),
         config = configs.get(`${p.chain_id}:${p.pool_address}`);
-      const value =
+      const verified = Boolean(
         validPool(`${p.chain_id}:${p.pool_address}`, Number(p.chain_id)) &&
         !p.error &&
         p.amount0_scaled !== null &&
         p.amount1_scaled !== null &&
+        BigInt(String(p.amount0_scaled)) >= 0n && BigInt(String(p.amount1_scaled)) >= 0n &&
+        BigInt(String(p.shares)) > 0n &&
         pool &&
-        config
-          ? scaledValue(
-              pool,
-              BigInt(String(p.amount0_scaled)),
-              BigInt(String(p.amount1_scaled)),
-              config,
-            )
-          : null;
-      if (value === null) w.missingCurrentPositions++;
+        config && BigInt(config.factor0) > 0n && BigInt(config.factor1) > 0n,
+      );
+      const value = verified
+        ? scaledValue(pool!, BigInt(String(p.amount0_scaled)), BigInt(String(p.amount1_scaled)), config!)
+        : null;
+      if (value === null) {
+        w.missingCurrentPositions++;
+        const missingQuote = verified && [
+          [p.amount0_scaled, pool!.token0FiatPrice],
+          [p.amount1_scaled, pool!.token1FiatPrice],
+        ].some(([amount, price]) => BigInt(String(amount)) !== 0n &&
+          (price === null || !Number.isFinite(price) || Number(price) <= 0));
+        // Missing quotes can exclude a verified portfolio from USD ranks.
+        // Missing balances, configs, stale heads and numeric failures cannot.
+        if (!missingQuote) unverifiedOwners.add(w.address);
+      }
       else w.knownActiveUsd += value;
     }
     const all: LPWallet[] = [...owners.values()].map((w) => {
@@ -287,6 +298,8 @@ export function buildLPReport(
           "Missing or stale pool valuation",
       }));
     const unknown = all.filter((w) => w.missingCurrentPositions > 0);
+    const unverified = unknown.filter((w) => unverifiedOwners.has(w.address));
+    const unpriced = unknown.length - unverified.length;
     const traderScope = traderScopes[String(chainId)] as
       | {
           until: number;
@@ -374,12 +387,15 @@ export function buildLPReport(
         ? Math.min(...relevantHeads.map((h) => Number(h.timestamp)))
         : null,
       historyComplete,
+      valuationComplete: historyComplete && failures.length === 0 && unverified.length === 0,
       rankingComplete:
         historyComplete && failures.length === 0 && unknown.length === 0,
       totalLPWallets: all.length,
       activeLPWallets: all.filter((w) => w.openBinPositions > 0).length,
       valuedActiveLPWallets: ranked.length,
       unpricedOrUnverifiedWallets: unknown.length,
+      unpricedActiveLPWallets: unpriced,
+      unverifiedActiveLPWallets: unverified.length,
       failedPools: failures.length,
       knownActiveLiquidityUsd: all.reduce((n, w) => n + w.knownActiveUsd, 0),
       knownLifetimeDepositsUsd: all.reduce((n, w) => n + w.knownDepositsUsd, 0),
@@ -413,6 +429,7 @@ export function buildLPReport(
         excludedWallets: unknown.slice(0, 100).map((w) => ({
           address: w.address,
           missingPositions: w.missingCurrentPositions,
+          reason: unverifiedOwners.has(w.address) ? "unverified" : "missing-price",
         })),
         poolErrors: failures.map((p) => ({
           poolAddress: p.pool_address,

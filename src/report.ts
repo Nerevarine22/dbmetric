@@ -87,6 +87,12 @@ export function exportReport(db: DatabaseSync) {
     const liquidity = buildLPReport(db, pools, scopes, (chain, wallets) =>
       walletExport.addLiquidity(chain, wallets),
     );
+    for (const [chainId, raw] of Object.entries(liquidity.scopes)) {
+      const lp = raw as import("./app/liquidity").LPScope;
+      console.log(JSON.stringify({ status: "lp-quality", chainId: Number(chainId), historyComplete: lp.historyComplete,
+        valuationComplete: lp.valuationComplete, rankingComplete: lp.rankingComplete, failedPools: lp.failedPools,
+        unpriced: lp.unpricedActiveLPWallets, unverified: lp.unverifiedActiveLPWallets }));
+    }
     const walletLookup = walletExport.finalize();
     const report = {
       generatedAt,

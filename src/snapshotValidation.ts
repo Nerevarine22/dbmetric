@@ -36,9 +36,21 @@ export function validateSnapshot(root = "public") {
   for (const chain of ["0", "1", "56", "4663"]) {
     const scope = r.scopes[chain], lp = r.liquidity.scopes[chain];
     assert(scope.allTimeComplete, "Incomplete trading history");
-    assert(lp.historyComplete && lp.rankingComplete && !lp.failedPools && !lp.unpricedOrUnverifiedWallets, "Incomplete LP rankings");
+    const quality = JSON.stringify({ chain, historyComplete: lp.historyComplete, rankingComplete: lp.rankingComplete,
+      valuationComplete: lp.valuationComplete, failedPools: lp.failedPools,
+      excluded: lp.unpricedOrUnverifiedWallets, unpriced: lp.unpricedActiveLPWallets, unverified: lp.unverifiedActiveLPWallets });
+    assert(lp.historyComplete && !lp.failedPools, `Incomplete LP history or pool verification: ${quality}`);
+    if (lp.valuationComplete === undefined) {
+      // Previously published snapshots have no separate verification/pricing counts.
+      assert(lp.rankingComplete && !lp.unpricedOrUnverifiedWallets, `Incomplete LP rankings: ${quality}`);
+    } else {
+      assert(lp.valuationComplete && lp.unverifiedActiveLPWallets === 0, `Incomplete LP position verification: ${quality}`);
+      assert(Number.isSafeInteger(lp.unpricedActiveLPWallets) && lp.unpricedActiveLPWallets! >= 0 &&
+        lp.unpricedOrUnverifiedWallets === lp.unpricedActiveLPWallets &&
+        lp.rankingComplete === (lp.unpricedActiveLPWallets === 0), `Inconsistent LP pricing disclosure: ${quality}`);
+    }
     const counts = { all: 0, "24h": 0, "7d": 0 };
-    let owners = 0, providers = 0, rankedLPs = 0;
+    let owners = 0, providers = 0, rankedLPs = 0, excludedLPs = 0;
     const listed = Object.fromEntries(Object.entries(scope.windows).map(([p, w]) => {
       assert(w.windowComplete && Number.isFinite(w.totalVolumeUsd) && w.totalVolumeUsd >= 0);
       return [p, new Map(w.wallets.map(v => [v.address, v]))];
@@ -70,7 +82,15 @@ export function validateSnapshot(root = "public") {
         }
         if (entry.lp) {
           providers++;
-          if (entry.lp.rank !== null) rankedLPs++;
+          if (entry.lp.rank !== null) {
+            assert(entry.lp.activeUsd !== null && Number.isFinite(entry.lp.activeUsd) && entry.lp.activeUsd > 0,
+              "Unpriced LP portfolio cannot receive a USD rank");
+            rankedLPs++;
+          }
+          if (entry.lp.activeUsd === null) {
+            assert(entry.lp.rank === null && entry.lp.missingCurrentPositions > 0, "Undisclosed unpriced LP profile");
+            excludedLPs++;
+          }
           const top = listedLP.get(address);
           if (top) {
             assert.equal(entry.lp.rank, top.rank); assert.equal(entry.lp.activeUsd, top.activeUsd);
@@ -81,6 +101,7 @@ export function validateSnapshot(root = "public") {
     }
     assert.equal(owners, manifest.walletCounts[chain]);
     assert.equal(providers, lp.totalLPWallets); assert.equal(rankedLPs, lp.valuedActiveLPWallets);
+    assert.equal(excludedLPs, lp.unpricedOrUnverifiedWallets, "LP exclusion count differs from wallet profiles");
     assert.equal(listedLP.size, 0);
     for (const period of ["all", "24h", "7d"] as const) {
       assert.equal(counts[period], scope.windows[period].totalWallets);

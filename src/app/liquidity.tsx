@@ -6,6 +6,9 @@ export type LPScope = {
   asOf: number | null;
   historyComplete: boolean;
   rankingComplete: boolean;
+  valuationComplete?: boolean;
+  unpricedActiveLPWallets?: number;
+  unverifiedActiveLPWallets?: number;
   totalLPWallets: number;
   activeLPWallets: number;
   valuedActiveLPWallets: number;
@@ -139,9 +142,15 @@ export function LiquiditySection({
           {!data.historyComplete
             ? "LP history or valuation is incomplete. "
             : "USD-valued portfolios only. "}
-          {number(data.unpricedOrUnverifiedWallets)} active portfolios excluded
-          for missing prices or failed checks; {number(data.failedPools)} pools
-          require verification. Rankings describe the valued subset.
+          {data.valuationComplete ? (
+            <>{number(data.unpricedActiveLPWallets ?? 0)} active portfolios have
+              missing token prices and are excluded from USD rankings. </>
+          ) : (
+            <>{number(data.unpricedOrUnverifiedWallets)} active portfolios excluded
+              for missing prices or failed checks; {number(data.failedPools)} pools
+              require verification. </>
+          )}
+          Rankings describe fully priced portfolios.
         </div>
       )}
       <div className="kpis">
